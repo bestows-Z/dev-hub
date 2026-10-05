@@ -7,7 +7,6 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUpRight,
-  Bot,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -19,7 +18,8 @@ import {
   Package,
   PenLine,
   Send,
-  Sparkles,
+  Volume2,
+  VolumeX,
   X,
 } from 'lucide-react'
 import {
@@ -725,6 +725,8 @@ function Assistant() {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [speakingIndex, setSpeakingIndex] = useState<number | null>(null)
+  const speechRef = useRef<SpeechSynthesisUtterance | null>(null)
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: '你好，有关于博客文章的问题可以问我。我会尽量附上原文出处。' },
   ])
@@ -732,6 +734,28 @@ function Assistant() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, open])
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+    }
+  }, [])
+  function readAloud(index: number, content: string) {
+    if (!('speechSynthesis' in window)) return
+    if (speakingIndex === index) {
+      window.speechSynthesis.cancel()
+      setSpeakingIndex(null)
+      return
+    }
+    window.speechSynthesis.cancel()
+    const utterance = new SpeechSynthesisUtterance(content)
+    utterance.lang = 'zh-CN'
+    utterance.rate = 1
+    utterance.onend = () => setSpeakingIndex(null)
+    utterance.onerror = () => setSpeakingIndex(null)
+    speechRef.current = utterance
+    setSpeakingIndex(index)
+    window.speechSynthesis.speak(utterance)
+  }
   async function send(event: FormEvent) {
     event.preventDefault()
     const question = input.trim()
@@ -764,21 +788,22 @@ function Assistant() {
     <div className="assistant-root">
       <button
         type="button"
-        className={open ? 'assistant-trigger active' : 'assistant-trigger'}
-        onClick={() => setOpen(!open)}
+        className={`assistant-trigger${open ? ' active' : ''}${busy ? ' waiting' : ''}${speakingIndex !== null ? ' speaking' : ''}`}
+        onClick={() => {
+          if (open && 'speechSynthesis' in window) window.speechSynthesis.cancel()
+          setSpeakingIndex(null)
+          setOpen(!open)
+        }}
         aria-label={open ? '关闭数字助手' : '打开数字助手'}
         aria-expanded={open}
       >
-        <span className="avatar-face">
-          <span className="avatar-eye" />
-          <span className="avatar-eye" />
-          <span className="avatar-mouth" />
+        <img className="assistant-character" src="/images/blog-keeper.png" alt="" />
+        <span className="assistant-trigger-label">
+          {busy ? '正在找文章…' : speakingIndex !== null ? '正在说话…' : '来聊聊？'}
         </span>
-        {open ? (
-          <X size={18} />
-        ) : (
-          <span className="assistant-trigger-label">
-            问问小助手 <Sparkles size={15} />
+        {open && (
+          <span className="assistant-close-mark">
+            <X size={14} />
           </span>
         )}
       </button>
@@ -786,12 +811,12 @@ function Assistant() {
         <section className="assistant-panel" aria-label="数字助手对话">
           <div className="assistant-head">
             <div className="assistant-mini">
-              <Bot size={20} />
+              <img src="/images/blog-keeper.png" alt="" />
             </div>
             <div>
-              <strong>DevHub 助手</strong>
+              <strong>博客小助手</strong>
               <span>
-                <i /> 在线探索
+                <i /> 从文章里找答案
               </span>
             </div>
             <button type="button" aria-label="关闭对话" onClick={() => setOpen(false)}>
@@ -802,6 +827,17 @@ function Assistant() {
             {messages.map((message, index) => (
               <div className={`message ${message.role}`} key={index}>
                 <p>{message.content}</p>
+                {message.role === 'assistant' && 'speechSynthesis' in window && (
+                  <button
+                    type="button"
+                    className="message-read"
+                    onClick={() => readAloud(index, message.content)}
+                    aria-label={speakingIndex === index ? '停止朗读' : '朗读回答'}
+                  >
+                    {speakingIndex === index ? <VolumeX size={15} /> : <Volume2 size={15} />}
+                    {speakingIndex === index ? '停止' : '朗读'}
+                  </button>
+                )}
                 {message.sources?.length ? (
                   <div className="message-sources">
                     参考：
