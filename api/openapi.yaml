@@ -31,8 +31,103 @@ tags:
   - name: Content
     description: 公开文章与友链
 
+  - name: Store
+    description: 商品和订单
+
 
 paths:
+
+  /api/v1/products:
+    get:
+      tags: [Store]
+      summary: 分页读取在售商品
+      operationId: listProducts
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: page_size
+          schema: { type: integer, minimum: 1, maximum: 50, default: 12 }
+      responses:
+        "200":
+          description: 商品列表
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message, data]
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string, example: success }
+                  data:
+                    type: object
+                    required: [items, total, page, page_size]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Product" }
+                      total: { type: integer, format: int64 }
+                      page: { type: integer }
+                      page_size: { type: integer }
+
+  /api/v1/products/{slug}:
+    get:
+      tags: [Store]
+      summary: 读取在售商品详情
+      operationId: getProduct
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: 商品详情
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message, data]
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string, example: success }
+                  data: { $ref: "#/components/schemas/Product" }
+        "404":
+          description: 商品不存在或未上架
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessErrorResponse" }
+
+  /api/v1/orders:
+    post:
+      tags: [Store]
+      summary: 创建线下付款订单
+      description: 下单时原子扣减库存。站长随后通过邮件确认付款与交付；本站不收集银行卡信息。
+      operationId: createOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateOrderRequest" }
+            example: { product_id: 1, email: buyer@example.com, quantity: 1 }
+      responses:
+        "200":
+          description: 成功时返回订单；业务失败时检查 code
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message, data]
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string, example: order created }
+                  data: { $ref: "#/components/schemas/Order" }
+        "500":
+          description: 服务器内部异常
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InternalErrorResponse" }
 
   /api/v1/articles:
     get:
@@ -332,6 +427,38 @@ paths:
 components:
 
   schemas:
+
+    Product:
+      type: object
+      required: [id, slug, name, description, cover_url, price_cents, stock]
+      properties:
+        id: { type: integer, format: int64 }
+        slug: { type: string }
+        name: { type: string }
+        description: { type: string }
+        cover_url: { type: string }
+        price_cents: { type: integer, format: int64, minimum: 0, description: 人民币分 }
+        stock: { type: integer, minimum: 0 }
+
+    CreateOrderRequest:
+      type: object
+      required: [product_id, email, quantity]
+      properties:
+        product_id: { type: integer, format: int64 }
+        email: { type: string, format: email }
+        quantity: { type: integer, minimum: 1, maximum: 10 }
+
+    Order:
+      type: object
+      required: [order_no, product_id, email, quantity, total_cents, status, created_at]
+      properties:
+        order_no: { type: string }
+        product_id: { type: integer, format: int64 }
+        email: { type: string, format: email }
+        quantity: { type: integer }
+        total_cents: { type: integer, format: int64 }
+        status: { type: string, enum: [pending_payment, paid, delivered, cancelled] }
+        created_at: { type: string, format: date-time }
 
     ArticleSummary:
       type: object
