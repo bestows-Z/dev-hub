@@ -13,6 +13,7 @@ import (
 	"github.com/bestows-Z/dev-hub/backend/internal/config"
 	httprouter "github.com/bestows-Z/dev-hub/backend/internal/http/router"
 	pg "github.com/bestows-Z/dev-hub/backend/internal/platform/postgres"
+	"github.com/bestows-Z/dev-hub/backend/internal/user"
 	"go.uber.org/zap"
 )
 
@@ -45,7 +46,18 @@ func main() {
 			zap.Error(err),
 		)
 	}
-	router := httprouter.New(postgresClient.SQLDB)
+	userRepository := user.NewRepository(
+		postgresClient.DB,
+	)
+
+	userService := user.NewService(
+		userRepository,
+	)
+	userHandler := user.NewHandler(
+		userService,
+		logger,
+	)
+	router := httprouter.New(postgresClient.SQLDB, userHandler)
 	address := fmt.Sprintf(
 		"%s:%d",
 		cfg.HTTP.Host,

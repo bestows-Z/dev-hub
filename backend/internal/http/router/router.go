@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
+	"github.com/bestows-Z/dev-hub/backend/internal/user"
 	"github.com/gin-gonic/gin"
 )
 
-func New(sqlDB *sql.DB) *gin.Engine {
+func New(sqlDB *sql.DB, userHandler *user.Handler) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
@@ -32,26 +34,20 @@ func New(sqlDB *sql.DB) *gin.Engine {
 		defer cancel()
 
 		if err := sqlDB.PingContext(ctx); err != nil {
-			c.JSON(
-				http.StatusServiceUnavailable,
-				gin.H{
-					"code":    50300,
-					"message": "service not ready",
-					"data": gin.H{
-						"postgres": "down",
-					},
-				},
-			)
+			response.Error(c)
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
-			"code":    0,
-			"message": "ok",
-			"data": gin.H{
+		response.Success(
+			c,
+			gin.H{
 				"postgres": "up",
 			},
-		})
+		)
 	})
+	authGroup := v1.Group("/auth")
+	{
+		authGroup.POST("/register", userHandler.Register)
+	}
 	return r
 }

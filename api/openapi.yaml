@@ -2,8 +2,20 @@ openapi: 3.0.3
 
 info:
   title: DevHub API
-  description: DevHub 个人开发者平台 API
-  version: 0.1.0
+  description: |
+    DevHub 个人开发者平台后端 API。
+
+    ## 统一响应约定
+
+    除真正的服务器内部异常外，HTTP Status 统一返回 200。
+
+    客户端通过响应体中的 `code` 判断业务执行结果。
+
+    - `code = 0`：成功
+    - `code != 0`：业务失败
+    - HTTP 500：服务器内部异常
+
+  version: 0.2.0
 
 servers:
   - url: http://localhost:8080
@@ -13,102 +25,480 @@ tags:
   - name: System
     description: 系统基础接口
 
+  - name: Auth
+    description: 用户认证接口
+
+
 paths:
+
   /api/v1/health:
     get:
       tags:
         - System
+
       summary: 服务存活检查
+
+      description: |
+        检查 DevHub HTTP 服务进程是否正常运行。
+
       operationId: healthCheck
 
       responses:
+
         "200":
-          description: API 服务运行正常
+          description: 服务正常运行
+
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
 
+              example:
+                code: 0
+                message: success
+                data:
+                  service: devhub-api
+                  status: up
+
+
   /api/v1/ready:
     get:
       tags:
         - System
+
       summary: 服务就绪检查
-      description: 检查 DevHub 及 PostgreSQL 是否已经可以正常提供服务。
+
+      description: |
+        检查 DevHub 当前依赖是否可用。
+
+        当前阶段主要检查 PostgreSQL。
+
       operationId: readinessCheck
 
       responses:
+
         "200":
           description: 服务已经就绪
+
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReadyResponse"
 
-        "503":
-          description: 服务依赖不可用
+              example:
+                code: 0
+                message: success
+                data:
+                  postgres: up
+
+        "500":
+          description: 服务依赖异常
+
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReadyErrorResponse"
+                $ref: "#/components/schemas/InternalErrorResponse"
+
+              example:
+                code: 50000
+                message: internal server error
+                data: null
+
+
+  /api/v1/auth/register:
+    post:
+      tags:
+        - Auth
+
+      summary: 用户注册
+
+      description: |
+        创建新的 DevHub 用户。
+
+        用户名规则：
+
+        - 长度 3~32
+        - 仅允许英文字母、数字、下划线
+        - 服务端统一转换为小写
+        - 用户名不可重复
+        - 邮箱不可重复
+
+        密码使用 bcrypt Hash 后保存，
+        不会在数据库中保存明文密码。
+
+      operationId: registerUser
+
+      requestBody:
+        required: true
+
+        content:
+          application/json:
+
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+
+            examples:
+
+              normal:
+                summary: 正常注册
+                value:
+                  username: tianhao
+                  email: tianhao@example.com
+                  password: "12345678"
+
+              mixedCase:
+                summary: 大小写用户名
+                description: 服务端会转换成小写
+                value:
+                  username: TianHao
+                  email: TianHao@example.com
+                  password: "12345678"
+
+      responses:
+
+        "200":
+          description: |
+            HTTP 200 既可能代表业务成功，也可能代表业务失败。
+
+            请根据响应中的 `code` 判断。
+
+          content:
+            application/json:
+
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/RegisterSuccessResponse"
+                  - $ref: "#/components/schemas/BusinessErrorResponse"
+
+              examples:
+
+                success:
+                  summary: 注册成功
+                  value:
+                    code: 0
+                    message: registered successfully
+                    data:
+                      id: 1
+                      username: tianhao
+                      email: tianhao@example.com
+                      role: 2
+                      status: 1
+                      created_at: "2026-10-05T17:30:00Z"
+
+                invalidParams:
+                  summary: 参数错误
+                  value:
+                    code: 40001
+                    message: invalid request parameters
+                    data: null
+
+                invalidUsername:
+                  summary: 用户名格式错误
+                  value:
+                    code: 40002
+                    message: username may only contain letters, numbers and underscores
+                    data: null
+
+                passwordTooLong:
+                  summary: 密码过长
+                  value:
+                    code: 40003
+                    message: password is too long
+                    data: null
+
+                usernameExists:
+                  summary: 用户名已经存在
+                  value:
+                    code: 40901
+                    message: username already exists
+                    data: null
+
+                emailExists:
+                  summary: 邮箱已经存在
+                  value:
+                    code: 40902
+                    message: email already exists
+                    data: null
+
+        "500":
+          description: 服务器内部异常
+
+          content:
+            application/json:
+
+              schema:
+                $ref: "#/components/schemas/InternalErrorResponse"
+
+              example:
+                code: 50000
+                message: internal server error
+                data: null
+
 
 components:
+
   schemas:
+
+    BaseResponse:
+      type: object
+
+      required:
+        - code
+        - message
+        - data
+
+      properties:
+
+        code:
+          type: integer
+          description: |
+            DevHub 业务状态码。
+
+            0 表示成功，
+            非 0 表示业务失败。
+          example: 0
+
+        message:
+          type: string
+          example: success
+
+        data:
+          nullable: true
+
+
+    HealthData:
+      type: object
+
+      required:
+        - service
+        - status
+
+      properties:
+
+        service:
+          type: string
+          example: devhub-api
+
+        status:
+          type: string
+          example: up
+
 
     HealthResponse:
       type: object
+
+      required:
+        - code
+        - message
+        - data
+
       properties:
+
         code:
           type: integer
           example: 0
 
         message:
           type: string
-          example: ok
+          example: success
 
         data:
-          type: object
-          properties:
-            service:
-              type: string
-              example: devhub-api
+          $ref: "#/components/schemas/HealthData"
 
-            status:
-              type: string
-              example: up
+
+    ReadyData:
+      type: object
+
+      required:
+        - postgres
+
+      properties:
+
+        postgres:
+          type: string
+          example: up
+
 
     ReadyResponse:
       type: object
+
+      required:
+        - code
+        - message
+        - data
+
       properties:
+
         code:
           type: integer
           example: 0
 
         message:
           type: string
-          example: ok
+          example: success
 
         data:
-          type: object
-          properties:
-            postgres:
-              type: string
-              example: up
+          $ref: "#/components/schemas/ReadyData"
 
-    ReadyErrorResponse:
+
+    RegisterRequest:
       type: object
+
+      required:
+        - username
+        - email
+        - password
+
       properties:
+
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: "^[a-zA-Z0-9_]+$"
+          example: tianhao
+
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: tianhao@example.com
+
+        password:
+          type: string
+          minLength: 8
+          maxLength: 72
+          format: password
+          example: "12345678"
+
+
+    User:
+      type: object
+
+      required:
+        - id
+        - username
+        - email
+        - role
+        - status
+        - created_at
+
+      properties:
+
+        id:
+          type: integer
+          format: int64
+          example: 1
+
+        username:
+          type: string
+          example: tianhao
+
+        email:
+          type: string
+          format: email
+          example: tianhao@example.com
+
+        role:
+          type: integer
+          format: int32
+          description: |
+            用户角色。
+
+            - 1：管理员
+            - 2：普通用户
+          enum:
+            - 1
+            - 2
+          example: 2
+
+        status:
+          type: integer
+          format: int32
+          description: |
+            用户状态。
+
+            - 1：正常
+            - 2：禁用
+          enum:
+            - 1
+            - 2
+          example: 1
+
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-10-05T17:30:00Z"
+
+
+    RegisterSuccessResponse:
+      type: object
+
+      required:
+        - code
+        - message
+        - data
+
+      properties:
+
         code:
           type: integer
-          example: 50300
+          enum:
+            - 0
+          example: 0
 
         message:
           type: string
-          example: service not ready
+          example: registered successfully
 
         data:
-          type: object
-          properties:
-            postgres:
-              type: string
-              example: down
+          $ref: "#/components/schemas/User"
+
+
+    BusinessErrorResponse:
+      type: object
+
+      required:
+        - code
+        - message
+        - data
+
+      properties:
+
+        code:
+          type: integer
+          description: 业务错误码
+          example: 40901
+
+        message:
+          type: string
+          example: username already exists
+
+        data:
+          nullable: true
+          example: null
+
+
+    InternalErrorResponse:
+      type: object
+
+      required:
+        - code
+        - message
+        - data
+
+      properties:
+
+        code:
+          type: integer
+          enum:
+            - 50000
+          example: 50000
+
+        message:
+          type: string
+          example: internal server error
+
+        data:
+          nullable: true
+          example: null
