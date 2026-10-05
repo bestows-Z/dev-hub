@@ -6,12 +6,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bestows-Z/dev-hub/backend/internal/content"
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
 	"github.com/bestows-Z/dev-hub/backend/internal/user"
 	"github.com/gin-gonic/gin"
 )
 
-func New(sqlDB *sql.DB, userHandler *user.Handler) *gin.Engine {
+func New(sqlDB *sql.DB, userHandler *user.Handler, contentHandler *content.Handler) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
@@ -49,5 +50,8 @@ func New(sqlDB *sql.DB, userHandler *user.Handler) *gin.Engine {
 	{
 		authGroup.POST("/register", userHandler.Register)
 	}
+	v1.GET("/articles", contentHandler.ListArticles)
+	v1.GET("/articles/:slug", contentHandler.GetArticle)
+	v1.GET("/links", contentHandler.ListLinks)
 	return r
 }

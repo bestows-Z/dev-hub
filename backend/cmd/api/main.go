@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bestows-Z/dev-hub/backend/internal/config"
+	"github.com/bestows-Z/dev-hub/backend/internal/content"
 	httprouter "github.com/bestows-Z/dev-hub/backend/internal/http/router"
 	pg "github.com/bestows-Z/dev-hub/backend/internal/platform/postgres"
 	"github.com/bestows-Z/dev-hub/backend/internal/user"
@@ -57,7 +58,8 @@ func main() {
 		userService,
 		logger,
 	)
-	router := httprouter.New(postgresClient.SQLDB, userHandler)
+	contentHandler := content.NewHandler(content.NewRepository(postgresClient.DB), logger)
+	router := httprouter.New(postgresClient.SQLDB, userHandler, contentHandler)
 	address := fmt.Sprintf(
 		"%s:%d",
 		cfg.HTTP.Host,

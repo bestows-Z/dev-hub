@@ -28,8 +28,102 @@ tags:
   - name: Auth
     description: 用户认证接口
 
+  - name: Content
+    description: 公开文章与友链
+
 
 paths:
+
+  /api/v1/articles:
+    get:
+      tags: [Content]
+      summary: 分页读取已发布文章
+      operationId: listArticles
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: page_size
+          schema: { type: integer, minimum: 1, maximum: 50, default: 12 }
+        - in: query
+          name: q
+          description: 在标题和摘要中搜索
+          schema: { type: string }
+      responses:
+        "200":
+          description: 文章列表
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message, data]
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string, example: success }
+                  data:
+                    type: object
+                    required: [items, total, page, page_size]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/ArticleSummary" }
+                      total: { type: integer, format: int64 }
+                      page: { type: integer }
+                      page_size: { type: integer }
+        "500":
+          description: 服务器内部异常
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InternalErrorResponse" }
+
+  /api/v1/articles/{slug}:
+    get:
+      tags: [Content]
+      summary: 按 slug 读取已发布文章
+      operationId: getArticle
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: 文章详情
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message, data]
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string, example: success }
+                  data: { $ref: "#/components/schemas/Article" }
+        "404":
+          description: 文章不存在或未发布
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessErrorResponse" }
+
+  /api/v1/links:
+    get:
+      tags: [Content]
+      summary: 读取已启用友链
+      operationId: listFriendLinks
+      responses:
+        "200":
+          description: 友链列表
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message, data]
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string, example: success }
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/FriendLink" }
 
   /api/v1/health:
     get:
@@ -238,6 +332,39 @@ paths:
 components:
 
   schemas:
+
+    ArticleSummary:
+      type: object
+      required: [id, slug, title, excerpt, cover_url, tags, published_at]
+      properties:
+        id: { type: integer, format: int64 }
+        slug: { type: string }
+        title: { type: string }
+        excerpt: { type: string }
+        cover_url: { type: string, format: uri, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+        published_at: { type: string, format: date-time, nullable: true }
+
+    Article:
+      allOf:
+        - $ref: "#/components/schemas/ArticleSummary"
+        - type: object
+          required: [body_md, created_at]
+          properties:
+            body_md: { type: string, description: Markdown 原文 }
+            created_at: { type: string, format: date-time }
+
+    FriendLink:
+      type: object
+      required: [id, name, url, avatar_url, description]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        url: { type: string, format: uri }
+        avatar_url: { type: string, format: uri, nullable: true }
+        description: { type: string }
 
     BaseResponse:
       type: object
