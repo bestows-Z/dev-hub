@@ -8,12 +8,13 @@ import (
 
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
+	"github.com/bestows-Z/dev-hub/backend/internal/project"
 	"github.com/bestows-Z/dev-hub/backend/internal/store"
 	"github.com/bestows-Z/dev-hub/backend/internal/user"
 	"github.com/gin-gonic/gin"
 )
 
-func New(sqlDB *sql.DB, userHandler *user.Handler, contentHandler *content.Handler, storeHandler *store.Handler) *gin.Engine {
+func New(sqlDB *sql.DB, userHandler *user.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
@@ -57,5 +58,6 @@ func New(sqlDB *sql.DB, userHandler *user.Handler, contentHandler *content.Handl
 	v1.GET("/products", storeHandler.ListProducts)
 	v1.GET("/products/:slug", storeHandler.GetProduct)
 	v1.POST("/orders", storeHandler.CreateOrder)
+	v1.GET("/projects", projectHandler.List)
 	return r
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
 	httprouter "github.com/bestows-Z/dev-hub/backend/internal/http/router"
 	pg "github.com/bestows-Z/dev-hub/backend/internal/platform/postgres"
+	"github.com/bestows-Z/dev-hub/backend/internal/project"
 	"github.com/bestows-Z/dev-hub/backend/internal/store"
 	"github.com/bestows-Z/dev-hub/backend/internal/user"
 	"go.uber.org/zap"
@@ -61,7 +62,8 @@ func main() {
 	)
 	contentHandler := content.NewHandler(content.NewRepository(postgresClient.DB), logger)
 	storeHandler := store.NewHandler(store.NewRepository(postgresClient.DB), logger)
-	router := httprouter.New(postgresClient.SQLDB, userHandler, contentHandler, storeHandler)
+	projectHandler := project.NewHandler(project.NewRepository(postgresClient.DB), logger)
+	router := httprouter.New(postgresClient.SQLDB, userHandler, contentHandler, storeHandler, projectHandler)
 	address := fmt.Sprintf(
 		"%s:%d",
 		cfg.HTTP.Host,
