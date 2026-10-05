@@ -36,6 +36,7 @@ const fields: Record<EditableKind, Field[]> = {
     { key: 'excerpt', label: '摘要', type: 'textarea' },
     { key: 'body_md', label: '正文（Markdown）', type: 'textarea' },
     { key: 'cover_url', label: '封面图片地址', type: 'url' },
+    { key: 'category', label: '栏目' },
     { key: 'tags', label: '标签（用逗号分隔）' },
     { key: 'status', label: '状态' },
   ],
@@ -74,6 +75,7 @@ const blank: Record<EditableKind, Record<string, unknown>> = {
     excerpt: '',
     body_md: '',
     cover_url: '',
+    category: 'tech',
     tags: '',
     status: 'draft',
   },
@@ -379,7 +381,17 @@ export default function Admin() {
             {fields[kind].map((field) => (
               <label key={field.key} className={field.type === 'textarea' ? 'wide' : ''}>
                 <span>{field.label}</span>
-                {field.key === 'status' ? (
+                {field.key === 'category' ? (
+                  <select
+                    value={String(form.category || 'tech')}
+                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  >
+                    <option value="tech">技术</option>
+                    <option value="travel">游记</option>
+                    <option value="essay">随笔</option>
+                    <option value="record">记录</option>
+                  </select>
+                ) : field.key === 'status' ? (
                   <select
                     value={String(form.status || 'draft')}
                     onChange={(e) => setForm({ ...form, status: e.target.value })}

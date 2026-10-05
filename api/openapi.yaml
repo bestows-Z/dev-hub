@@ -593,8 +593,16 @@ paths:
           schema: { type: integer, minimum: 1, maximum: 50, default: 12 }
         - in: query
           name: q
-          description: 在标题和摘要中搜索
+          description: 在标题、摘要和 Markdown 正文中搜索
           schema: { type: string }
+        - in: query
+          name: category
+          description: 文章栏目；留空为全部
+          schema: { type: string, enum: [tech, travel, essay, record] }
+        - in: query
+          name: tag
+          description: 精确匹配标签；留空为全部
+          schema: { type: string, maxLength: 40 }
       responses:
         "200":
           description: 文章列表
@@ -621,6 +629,33 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/InternalErrorResponse" }
+
+  /api/v1/articles/facets:
+    get:
+      tags: [Content]
+      summary: 已发布文章的栏目与标签数量
+      operationId: articleFacets
+      responses:
+        "200":
+          description: 栏目与标签统计
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message, data]
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string, example: success }
+                  data:
+                    type: object
+                    required: [categories, tags]
+                    properties:
+                      categories:
+                        type: array
+                        items: { $ref: "#/components/schemas/ArticleFacet" }
+                      tags:
+                        type: array
+                        items: { $ref: "#/components/schemas/ArticleFacet" }
 
   /api/v1/articles/{slug}:
     get:
@@ -897,6 +932,7 @@ components:
               excerpt: { type: string }
               body_md: { type: string }
               cover_url: { type: string }
+              category: { type: string, enum: [tech, travel, essay, record], default: tech }
               tags: { type: array, items: { type: string } }
               status: { type: string, enum: [draft, published], default: draft }
     LinkInput:
@@ -1027,15 +1063,23 @@ components:
         status: { type: string, enum: [pending_payment, paid, delivered, cancelled] }
         created_at: { type: string, format: date-time }
 
+    ArticleFacet:
+      type: object
+      required: [name, count]
+      properties:
+        name: { type: string }
+        count: { type: integer, format: int64 }
+
     ArticleSummary:
       type: object
-      required: [id, slug, title, excerpt, cover_url, tags, published_at]
+      required: [id, slug, title, excerpt, cover_url, category, tags, published_at]
       properties:
         id: { type: integer, format: int64 }
         slug: { type: string }
         title: { type: string }
         excerpt: { type: string }
         cover_url: { type: string, format: uri, nullable: true }
+        category: { type: string, enum: [tech, travel, essay, record] }
         tags:
           type: array
           items: { type: string }

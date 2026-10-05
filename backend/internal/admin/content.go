@@ -15,6 +15,7 @@ type articleInput struct {
 	Excerpt  string   `json:"excerpt"`
 	BodyMD   string   `json:"body_md" binding:"required"`
 	CoverURL string   `json:"cover_url"`
+	Category string   `json:"category" binding:"omitempty,oneof=tech travel essay record"`
 	Tags     []string `json:"tags"`
 	Status   string   `json:"status" binding:"omitempty,oneof=draft published"`
 }
@@ -45,7 +46,11 @@ func (h *Handler) CreateArticle(c *gin.Context) {
 	if status == "" {
 		status = "draft"
 	}
-	article := content.Article{Slug: input.Slug, Title: clean(input.Title), Excerpt: clean(input.Excerpt), BodyMD: input.BodyMD, CoverURL: clean(input.CoverURL), Tags: input.Tags, Status: status}
+	category := input.Category
+	if category == "" {
+		category = "tech"
+	}
+	article := content.Article{Slug: input.Slug, Title: clean(input.Title), Excerpt: clean(input.Excerpt), BodyMD: input.BodyMD, CoverURL: clean(input.CoverURL), Category: category, Tags: input.Tags, Status: status}
 	if article.Tags == nil {
 		article.Tags = []string{}
 	}
@@ -81,6 +86,9 @@ func (h *Handler) UpdateArticle(c *gin.Context) {
 	}
 	article.Slug, article.Title, article.Excerpt, article.BodyMD = input.Slug, clean(input.Title), clean(input.Excerpt), input.BodyMD
 	article.CoverURL, article.Tags, article.Status = clean(input.CoverURL), input.Tags, status
+	if input.Category != "" {
+		article.Category = input.Category
+	}
 	if article.Tags == nil {
 		article.Tags = []string{}
 	}

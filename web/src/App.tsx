@@ -438,11 +438,36 @@ function Home() {
 }
 
 function Articles() {
+  const location = useLocation()
+  const category =
+    location.pathname === '/travel'
+      ? 'travel'
+      : location.pathname === '/essays'
+        ? 'essay'
+        : location.pathname === '/records'
+          ? 'record'
+          : ''
+  const sections = [
+    { path: '/articles', label: '全部', category: '' },
+    { path: '/travel', label: '游记', category: 'travel' },
+    { path: '/essays', label: '随笔', category: 'essay' },
+    { path: '/records', label: '记录', category: 'record' },
+  ]
+  const sectionCopy: Record<string, [string, string]> = {
+    travel: ['路上的风景', '走过的地方，等我慢慢写下来。'],
+    essay: ['随笔', '没有固定主题，只记录当时的想法。'],
+    record: ['生活记录', '留住一些平常的小事。'],
+  }
   const [page, setPage] = useState(1)
   const [query, setQuery] = useState('')
   const [search, setSearch] = useState('')
+  const [tag, setTag] = useState('')
+  const facets = useRemote<{
+    categories: { name: string; count: number }[]
+    tags: { name: string; count: number }[]
+  }>('/articles/facets')
   const remote = useRemote<Page<ArticleSummary>>(
-    `/articles?page=${page}&page_size=9&q=${encodeURIComponent(search)}`,
+    `/articles?page=${page}&page_size=9&q=${encodeURIComponent(search)}&category=${category}&tag=${encodeURIComponent(tag)}`,
   )
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -453,9 +478,29 @@ function Articles() {
     <div className="container page-layout">
       <PageIntro
         eyebrow="文章归档"
-        title="写过的文章"
-        description="技术笔记和随手记录，都整理在这里。"
+        title={sectionCopy[category]?.[0] || '写过的文章'}
+        description={sectionCopy[category]?.[1] || '技术笔记和随手记录，都整理在这里。'}
       />
+      <div className="article-categories" aria-label="文章栏目">
+        {sections.map((section) => {
+          const count = facets.data?.categories.find(
+            (item) => item.name === section.category,
+          )?.count
+          return (
+            <Link
+              key={section.path}
+              to={section.path}
+              className={location.pathname === section.path ? 'active' : ''}
+              onClick={() => {
+                setPage(1)
+                setTag('')
+              }}
+            >
+              {section.label} {count ? <small>{count}</small> : null}
+            </Link>
+          )
+        })}
+      </div>
       <form className="search-form" onSubmit={submit}>
         <label htmlFor="article-search">搜索文章</label>
         <div>
@@ -470,12 +515,45 @@ function Articles() {
           </button>
         </div>
       </form>
+      {!!facets.data?.tags.length && (
+        <div className="article-facets" aria-label="按标签筛选">
+          <button
+            type="button"
+            className={!tag ? 'active' : ''}
+            onClick={() => {
+              setTag('')
+              setPage(1)
+            }}
+          >
+            全部标签
+          </button>
+          {facets.data.tags.map((item) => (
+            <button
+              type="button"
+              key={item.name}
+              className={tag === item.name ? 'active' : ''}
+              onClick={() => {
+                setTag(item.name)
+                setPage(1)
+              }}
+            >
+              # {item.name} <small>{item.count}</small>
+            </button>
+          ))}
+        </div>
+      )}
       <Status
         loading={remote.loading}
         error={remote.error}
         empty={!remote.data?.items.length}
-        emptyTitle={search ? '没找到相关文章' : '文章正在整理'}
-        emptyText={search ? '换个关键词试试。' : '新的笔记发布后会出现在这里。'}
+        emptyTitle={search || tag ? '没找到相关文章' : category ? '这里还没有内容' : '文章正在整理'}
+        emptyText={
+          search || tag
+            ? '换个关键词或标签试试。'
+            : category
+              ? '以后发布的内容会出现在这个栏目。'
+              : '新的笔记发布后会出现在这里。'
+        }
       >
         <div className="article-grid">
           {remote.data?.items.map((article, index) => (
@@ -1238,6 +1316,9 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/articles" element={<Articles />} />
+        <Route path="/travel" element={<Articles />} />
+        <Route path="/essays" element={<Articles />} />
+        <Route path="/records" element={<Articles />} />
         <Route path="/articles/:slug" element={<ArticleDetail />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/shop" element={<Shop />} />

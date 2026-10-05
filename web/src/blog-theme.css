@@ -1306,6 +1306,54 @@ body {
 .assistant-root.strolling {
   animation: keeper-stroll 6.2s ease-in-out both;
 }
+.article-categories,
+.article-facets {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 18px 0 22px;
+}
+.article-categories a,
+.article-facets button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #d9e7e2;
+  border-radius: 999px;
+  background: #fffdf9;
+  color: #58726c;
+  padding: 9px 16px;
+  font-size: 13px;
+  text-decoration: none;
+  transition:
+    background 0.22s,
+    border-color 0.22s,
+    transform 0.22s;
+}
+.article-facets {
+  margin-top: 10px;
+}
+.article-facets button {
+  padding: 7px 12px;
+  font-size: 12px;
+}
+.article-categories a:hover,
+.article-facets button:hover {
+  transform: translateY(-2px);
+  border-color: #8ebcb2;
+}
+.article-categories .active,
+.article-facets .active {
+  background: #397f78;
+  border-color: #397f78;
+  color: #fff;
+}
+.article-categories small,
+.article-facets small {
+  font-size: 10px;
+  opacity: 0.7;
+}
 .assistant-root.positioned {
   right: auto;
   bottom: auto;

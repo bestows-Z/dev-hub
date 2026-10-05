@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
 	"github.com/gin-gonic/gin"
@@ -20,6 +21,16 @@ func NewHandler(repository Repository, logger *zap.Logger) *Handler {
 }
 
 func (h *Handler) ListArticles(c *gin.Context) {
+	category := c.Query("category")
+	if category != "" && category != "tech" && category != "travel" && category != "essay" && category != "record" {
+		response.Fail(c, response.CodeInvalidParams, "invalid article category")
+		return
+	}
+	tag := strings.TrimSpace(c.Query("tag"))
+	if len([]rune(tag)) > 40 || len([]rune(c.Query("q"))) > 100 {
+		response.Fail(c, response.CodeInvalidParams, "article filter is too long")
+		return
+	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if page < 1 {
 		page = 1
@@ -34,7 +45,7 @@ func (h *Handler) ListArticles(c *gin.Context) {
 	if pageSize > 50 {
 		pageSize = 50
 	}
-	articles, total, err := h.repository.ListArticles(c.Request.Context(), c.Query("q"), pageSize, (page-1)*pageSize)
+	articles, total, err := h.repository.ListArticles(c.Request.Context(), ArticleFilter{Search: c.Query("q"), Category: category, Tag: tag}, pageSize, (page-1)*pageSize)
 	if err != nil {
 		h.logger.Error("list articles", zap.Error(err))
 		response.Error(c)
@@ -45,6 +56,16 @@ func (h *Handler) ListArticles(c *gin.Context) {
 		items = append(items, article.Summary())
 	}
 	response.Success(c, gin.H{"items": items, "total": total, "page": page, "page_size": pageSize})
+}
+
+func (h *Handler) ArticleFacets(c *gin.Context) {
+	facets, err := h.repository.ArticleFacets(c.Request.Context())
+	if err != nil {
+		h.logger.Error("article facets", zap.Error(err))
+		response.Error(c)
+		return
+	}
+	response.Success(c, facets)
 }
 
 func (h *Handler) GetArticle(c *gin.Context) {

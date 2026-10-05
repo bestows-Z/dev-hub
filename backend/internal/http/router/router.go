@@ -58,6 +58,7 @@ func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, co
 	}
 	v1.GET("/auth/me", authHandler.RequireUser(), authHandler.Me)
 	v1.GET("/articles", contentHandler.ListArticles)
+	v1.GET("/articles/facets", contentHandler.ArticleFacets)
 	v1.GET("/articles/:slug", contentHandler.GetArticle)
 	v1.GET("/links", contentHandler.ListLinks)
 	v1.GET("/products", storeHandler.ListProducts)

@@ -4,6 +4,7 @@ export interface ArticleSummary {
   title: string
   excerpt: string
   cover_url: string
+  category: 'tech' | 'travel' | 'essay' | 'record'
   tags: string[]
   published_at: string | null
 }

@@ -2,6 +2,7 @@ package content
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -12,7 +13,8 @@ import (
 var ErrArticleNotFound = errors.New("article not found")
 
 type Repository interface {
-	ListArticles(context.Context, string, int, int) ([]Article, int64, error)
+	ListArticles(context.Context, ArticleFilter, int, int) ([]Article, int64, error)
+	ArticleFacets(context.Context) (ArticleFacets, error)
 	GetArticle(context.Context, string) (*Article, error)
 	ListLinks(context.Context) ([]FriendLink, error)
 }
@@ -21,10 +23,18 @@ type repository struct{ db *gorm.DB }
 
 func NewRepository(db *gorm.DB) Repository { return &repository{db: db} }
 
-func (r *repository) ListArticles(ctx context.Context, search string, limit, offset int) ([]Article, int64, error) {
+func (r *repository) ListArticles(ctx context.Context, filter ArticleFilter, limit, offset int) ([]Article, int64, error) {
 	query := r.db.WithContext(ctx).Model(&Article{}).Where("status = ?", "published")
-	if search = strings.TrimSpace(search); search != "" {
-		query = query.Where("title ILIKE ? OR excerpt ILIKE ?", "%"+search+"%", "%"+search+"%")
+	if search := strings.TrimSpace(filter.Search); search != "" {
+		like := "%" + search + "%"
+		query = query.Where("title ILIKE ? OR excerpt ILIKE ? OR body_md ILIKE ?", like, like, like)
+	}
+	if filter.Category != "" {
+		query = query.Where("category = ?", filter.Category)
+	}
+	if filter.Tag != "" {
+		tag, _ := json.Marshal([]string{filter.Tag})
+		query = query.Where("tags @> ?::jsonb", string(tag))
 	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
@@ -35,6 +45,17 @@ func (r *repository) ListArticles(ctx context.Context, search string, limit, off
 		return nil, 0, fmt.Errorf("list articles: %w", err)
 	}
 	return articles, total, nil
+}
+
+func (r *repository) ArticleFacets(ctx context.Context) (ArticleFacets, error) {
+	result := ArticleFacets{Categories: []ArticleFacet{}, Tags: []ArticleFacet{}}
+	if err := r.db.WithContext(ctx).Raw("SELECT category AS name, COUNT(*) AS count FROM articles WHERE status = 'published' GROUP BY category ORDER BY count DESC, name").Scan(&result.Categories).Error; err != nil {
+		return ArticleFacets{}, fmt.Errorf("article category facets: %w", err)
+	}
+	if err := r.db.WithContext(ctx).Raw("SELECT tag AS name, COUNT(*) AS count FROM articles, LATERAL jsonb_array_elements_text(tags) AS tag WHERE status = 'published' GROUP BY tag ORDER BY count DESC, name LIMIT 40").Scan(&result.Tags).Error; err != nil {
+		return ArticleFacets{}, fmt.Errorf("article tag facets: %w", err)
+	}
+	return result, nil
 }
 
 func (r *repository) GetArticle(ctx context.Context, slug string) (*Article, error) {

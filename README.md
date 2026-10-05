@@ -20,6 +20,8 @@
 
 页面右下角的博客小助手可以用鼠标或触屏拖动。位置保存在浏览器本地；打开对话后点击“归位”可恢复默认位置。
 
+文章管理支持技术、游记、随笔、记录四个栏目和自定义标签。前台 `/articles` 可搜索标题、摘要与正文，并按栏目或标签筛选；`/travel`、`/essays`、`/records` 目前不会填充虚构内容，站长发布对应文章后自动展示。更新旧数据库时需执行 `migrations/20261006001000_article_categories.sql` 的 Up 段。
+
 开发时前端由 Vite 代理 `/api` 到 `http://localhost:8080`。API 健康检查：`GET /api/v1/health`。
 
 文章助手默认从已发布文章中检索并返回相关段落与原文链接。若要让它生成自然语言回答，在 `.env` 中同时设置 `ASSISTANT_API_BASE_URL`、`ASSISTANT_API_KEY`、`ASSISTANT_MODEL`，服务端会调用兼容 Chat Completions 的模型接口。密钥只保存在服务端；模型不可用时仍返回文章摘录。
