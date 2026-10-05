@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { Link, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import Admin from './Admin'
 import {
   ArrowDown,
   ArrowRight,
@@ -74,6 +75,7 @@ function Layout({ children }: { children: ReactNode }) {
     ['/projects', '项目'],
     ['/shop', '商店'],
     ['/links', '友链'],
+    ['/admin', '管理'],
   ]
   return (
     <div className="app-shell">
@@ -866,6 +868,7 @@ export default function App() {
         <Route path="/shop" element={<Shop />} />
         <Route path="/shop/:slug" element={<ProductDetail />} />
         <Route path="/links" element={<Links />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>

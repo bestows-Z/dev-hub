@@ -11,7 +11,7 @@ type Project struct {
 	Tags        []string  `json:"tags" gorm:"type:jsonb;serializer:json"`
 	PreviewURL  string    `json:"preview_url"`
 	SourceURL   string    `json:"source_url"`
-	Status      string    `json:"-"`
+	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"-"`
 	UpdatedAt   time.Time `json:"-"`
 }

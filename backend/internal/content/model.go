@@ -10,7 +10,7 @@ type Article struct {
 	BodyMD      string     `json:"body_md" gorm:"column:body_md"`
 	CoverURL    string     `json:"cover_url"`
 	Tags        []string   `json:"tags" gorm:"type:jsonb;serializer:json"`
-	Status      string     `json:"-"`
+	Status      string     `json:"status"`
 	PublishedAt *time.Time `json:"published_at"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"-"`
@@ -36,8 +36,8 @@ type FriendLink struct {
 	URL         string    `json:"url"`
 	AvatarURL   string    `json:"avatar_url"`
 	Description string    `json:"description"`
-	SortOrder   int       `json:"-"`
-	Enabled     bool      `json:"-"`
+	SortOrder   int       `json:"sort_order"`
+	Enabled     bool      `json:"enabled"`
 	CreatedAt   time.Time `json:"-"`
 }
 

@@ -14,6 +14,8 @@
 4. 执行数据库迁移（SQL 文件位于 `migrations/`，按文件名顺序执行）。
 5. 在 `backend/` 执行 `go run ./cmd/api`；在 `web/` 执行 `npm install && npm run dev`。
 
+首次使用管理功能：先调用注册接口创建自己的账户，再在 `backend/` 执行 `go run ./cmd/admin promote <用户名>`。随后登录获取访问令牌，进入 `/admin`。管理员权限只通过本地命令授予，公开注册不会成为管理员。
+
 开发时前端由 Vite 代理 `/api` 到 `http://localhost:8080`。API 健康检查：`GET /api/v1/health`。
 
 ## 接口文档

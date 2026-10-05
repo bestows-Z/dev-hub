@@ -10,13 +10,13 @@ type Product struct {
 	CoverURL    string    `json:"cover_url"`
 	PriceCents  int64     `json:"price_cents"`
 	Stock       int       `json:"stock"`
-	Status      string    `json:"-"`
+	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"-"`
 	UpdatedAt   time.Time `json:"-"`
 }
 
 type Order struct {
-	ID         uint64    `json:"-" gorm:"primaryKey"`
+	ID         uint64    `json:"id" gorm:"primaryKey"`
 	OrderNo    string    `json:"order_no"`
 	ProductID  uint64    `json:"product_id"`
 	Email      string    `json:"email"`

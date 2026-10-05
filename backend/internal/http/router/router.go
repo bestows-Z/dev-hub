@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bestows-Z/dev-hub/backend/internal/admin"
 	"github.com/bestows-Z/dev-hub/backend/internal/auth"
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
@@ -15,7 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler) *gin.Engine {
+func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler, adminHandler *admin.Handler) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
@@ -62,5 +63,24 @@ func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, co
 	v1.GET("/products/:slug", storeHandler.GetProduct)
 	v1.POST("/orders", storeHandler.CreateOrder)
 	v1.GET("/projects", projectHandler.List)
+	adminGroup := v1.Group("/admin", authHandler.RequireUser(), authHandler.RequireAdmin())
+	adminGroup.GET("/articles", adminHandler.ListArticles)
+	adminGroup.POST("/articles", adminHandler.CreateArticle)
+	adminGroup.PUT("/articles/:id", adminHandler.UpdateArticle)
+	adminGroup.DELETE("/articles/:id", adminHandler.DeleteArticle)
+	adminGroup.GET("/links", adminHandler.ListLinks)
+	adminGroup.POST("/links", adminHandler.CreateLink)
+	adminGroup.PUT("/links/:id", adminHandler.UpdateLink)
+	adminGroup.DELETE("/links/:id", adminHandler.DeleteLink)
+	adminGroup.GET("/products", adminHandler.ListProducts)
+	adminGroup.POST("/products", adminHandler.CreateProduct)
+	adminGroup.PUT("/products/:id", adminHandler.UpdateProduct)
+	adminGroup.DELETE("/products/:id", adminHandler.DeleteProduct)
+	adminGroup.GET("/projects", adminHandler.ListProjects)
+	adminGroup.POST("/projects", adminHandler.CreateProject)
+	adminGroup.PUT("/projects/:id", adminHandler.UpdateProject)
+	adminGroup.DELETE("/projects/:id", adminHandler.DeleteProject)
+	adminGroup.GET("/orders", adminHandler.ListOrders)
+	adminGroup.PATCH("/orders/:id/status", adminHandler.UpdateOrderStatus)
 	return r
 }

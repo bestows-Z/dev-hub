@@ -37,8 +37,190 @@ tags:
   - name: Projects
     description: 公开项目
 
+  - name: Admin
+    description: 管理员内容与订单维护；先通过登录接口获取 Bearer Token
+
 
 paths:
+
+  /api/v1/admin/articles:
+    get:
+      tags: [Admin]
+      summary: 管理员读取全部文章（含草稿）
+      operationId: adminListArticles
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: page_size, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        "200": { $ref: "#/components/responses/AdminPageSuccess" }
+    post:
+      tags: [Admin]
+      summary: 创建文章
+      operationId: adminCreateArticle
+      security: [{ BearerAuth: [] }]
+      requestBody: { $ref: "#/components/requestBodies/ArticleInput" }
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+
+  /api/v1/admin/articles/{id}:
+    parameters:
+      - { $ref: "#/components/parameters/AdminID" }
+    put:
+      tags: [Admin]
+      summary: 完整更新文章
+      operationId: adminUpdateArticle
+      security: [{ BearerAuth: [] }]
+      requestBody: { $ref: "#/components/requestBodies/ArticleInput" }
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+    delete:
+      tags: [Admin]
+      summary: 删除文章
+      operationId: adminDeleteArticle
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+
+  /api/v1/admin/links:
+    get:
+      tags: [Admin]
+      summary: 管理员读取全部友链
+      operationId: adminListLinks
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+    post:
+      tags: [Admin]
+      summary: 创建友链
+      operationId: adminCreateLink
+      security: [{ BearerAuth: [] }]
+      requestBody: { $ref: "#/components/requestBodies/LinkInput" }
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+
+  /api/v1/admin/links/{id}:
+    parameters:
+      - { $ref: "#/components/parameters/AdminID" }
+    put:
+      tags: [Admin]
+      summary: 完整更新友链
+      operationId: adminUpdateLink
+      security: [{ BearerAuth: [] }]
+      requestBody: { $ref: "#/components/requestBodies/LinkInput" }
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+    delete:
+      tags: [Admin]
+      summary: 删除友链
+      operationId: adminDeleteLink
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+
+  /api/v1/admin/products:
+    get:
+      tags: [Admin]
+      summary: 管理员读取全部商品
+      operationId: adminListProducts
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/AdminPageSuccess" }
+    post:
+      tags: [Admin]
+      summary: 创建商品
+      operationId: adminCreateProduct
+      security: [{ BearerAuth: [] }]
+      requestBody: { $ref: "#/components/requestBodies/ProductInput" }
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+
+  /api/v1/admin/products/{id}:
+    parameters:
+      - { $ref: "#/components/parameters/AdminID" }
+    put:
+      tags: [Admin]
+      summary: 完整更新商品
+      operationId: adminUpdateProduct
+      security: [{ BearerAuth: [] }]
+      requestBody: { $ref: "#/components/requestBodies/ProductInput" }
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+    delete:
+      tags: [Admin]
+      summary: 删除商品；有订单引用时不能删除
+      operationId: adminDeleteProduct
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+
+  /api/v1/admin/projects:
+    get:
+      tags: [Admin]
+      summary: 管理员读取全部项目
+      operationId: adminListProjects
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/AdminPageSuccess" }
+    post:
+      tags: [Admin]
+      summary: 创建项目
+      operationId: adminCreateProject
+      security: [{ BearerAuth: [] }]
+      requestBody: { $ref: "#/components/requestBodies/ProjectInput" }
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+
+  /api/v1/admin/projects/{id}:
+    parameters:
+      - { $ref: "#/components/parameters/AdminID" }
+    put:
+      tags: [Admin]
+      summary: 完整更新项目
+      operationId: adminUpdateProject
+      security: [{ BearerAuth: [] }]
+      requestBody: { $ref: "#/components/requestBodies/ProjectInput" }
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+    delete:
+      tags: [Admin]
+      summary: 删除项目
+      operationId: adminDeleteProject
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+
+  /api/v1/admin/orders:
+    get:
+      tags: [Admin]
+      summary: 分页读取订单
+      operationId: adminListOrders
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { in: query, name: status, schema: { type: string, enum: [pending_payment, paid, delivered, cancelled] } }
+      responses:
+        "200": { $ref: "#/components/responses/AdminPageSuccess" }
+
+  /api/v1/admin/orders/{id}/status:
+    parameters:
+      - { $ref: "#/components/parameters/AdminID" }
+    patch:
+      tags: [Admin]
+      summary: 更新订单状态
+      description: 允许待付款→已付款或取消、已付款→已交付；取消待付款订单会恢复库存。
+      operationId: adminUpdateOrderStatus
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [paid, delivered, cancelled] }
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
 
   /api/v1/auth/login:
     post:
@@ -522,6 +704,100 @@ paths:
 
 
 components:
+
+  parameters:
+    AdminID:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+
+  requestBodies:
+    ArticleInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [slug, title, body_md]
+            properties:
+              slug: { type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+              title: { type: string, maxLength: 240 }
+              excerpt: { type: string }
+              body_md: { type: string }
+              cover_url: { type: string }
+              tags: { type: array, items: { type: string } }
+              status: { type: string, enum: [draft, published], default: draft }
+    LinkInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [name, url]
+            properties:
+              name: { type: string, maxLength: 100 }
+              url: { type: string, format: uri }
+              avatar_url: { type: string }
+              description: { type: string, maxLength: 280 }
+              sort_order: { type: integer }
+              enabled: { type: boolean, default: true }
+    ProductInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [slug, name, price_cents, stock]
+            properties:
+              slug: { type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+              name: { type: string, maxLength: 240 }
+              description: { type: string }
+              cover_url: { type: string }
+              price_cents: { type: integer, format: int64, minimum: 0 }
+              stock: { type: integer, minimum: 0 }
+              status: { type: string, enum: [draft, published], default: draft }
+    ProjectInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [slug, title]
+            properties:
+              slug: { type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$" }
+              title: { type: string, maxLength: 240 }
+              description: { type: string }
+              cover_url: { type: string, format: uri }
+              tags: { type: array, items: { type: string } }
+              preview_url: { type: string, format: uri }
+              source_url: { type: string, format: uri }
+              status: { type: string, enum: [draft, published], default: draft }
+
+  responses:
+    AdminSuccess:
+      description: 成功时 code 为 0；业务失败时按 code 判断
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/BaseResponse" }
+    AdminPageSuccess:
+      description: 分页列表，data 包含 items、total、page、page_size
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [code, message, data]
+            properties:
+              code: { type: integer, example: 0 }
+              message: { type: string, example: success }
+              data:
+                type: object
+                required: [items, total, page, page_size]
+                properties:
+                  items: { type: array, items: { type: object } }
+                  total: { type: integer, format: int64 }
+                  page: { type: integer }
+                  page_size: { type: integer }
 
   securitySchemes:
     BearerAuth:
