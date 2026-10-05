@@ -3,6 +3,7 @@ package user
 import "errors"
 
 var (
+	ErrNotFound = errors.New("user not found")
 	// ErrUsernameExists 用户名已经存在。
 	ErrUsernameExists = errors.New("username already exists")
 
