@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react'
 import { Link, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -850,6 +857,24 @@ type Message = {
   content: string
   sources?: { title: string; url: string }[]
 }
+type KeeperPoint = { x: number; y: number }
+const keeperPositionKey = 'devhub_keeper_position'
+function clampKeeper(point: KeeperPoint): KeeperPoint {
+  return {
+    x: Math.max(12, Math.min(point.x, window.innerWidth - 124)),
+    y: Math.max(12, Math.min(point.y, window.innerHeight - 140)),
+  }
+}
+function readKeeperPosition(): KeeperPoint | null {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(keeperPositionKey) || 'null',
+    ) as KeeperPoint | null
+    return saved && Number.isFinite(saved.x) && Number.isFinite(saved.y) ? clampKeeper(saved) : null
+  } catch {
+    return null
+  }
+}
 function Assistant() {
   const [open, setOpen] = useState(false)
   const [walking, setWalking] = useState(false)
@@ -857,6 +882,18 @@ function Assistant() {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null)
+  const [position, setPosition] = useState<KeeperPoint | null>(readKeeperPosition)
+  const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight })
+  const dragRef = useRef<{
+    pointerId: number
+    startX: number
+    startY: number
+    origin: KeeperPoint
+    moved: boolean
+  } | null>(null)
+  const latestPositionRef = useRef<KeeperPoint | null>(position)
+  const suppressClickRef = useRef(false)
+  const dragCleanupRef = useRef<(() => void) | null>(null)
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null)
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: '你好，有关于博客文章的问题可以问我。我会尽量附上原文出处。' },
@@ -868,7 +905,26 @@ function Assistant() {
   useEffect(() => {
     return () => {
       if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+      dragCleanupRef.current?.()
     }
+  }, [])
+  useEffect(() => {
+    const resize = () => {
+      setViewport({ width: window.innerWidth, height: window.innerHeight })
+      setPosition((current) => {
+        if (!current) return null
+        const next = clampKeeper(current)
+        latestPositionRef.current = next
+        try {
+          localStorage.setItem(keeperPositionKey, JSON.stringify(next))
+        } catch {
+          // The character can still be moved when browser storage is unavailable.
+        }
+        return next
+      })
+    }
+    window.addEventListener('resize', resize)
+    return () => window.removeEventListener('resize', resize)
   }, [])
   useEffect(() => {
     const preload = window.setTimeout(() => {
@@ -882,6 +938,7 @@ function Assistant() {
   useEffect(() => {
     if (
       open ||
+      position !== null ||
       busy ||
       speakingIndex !== null ||
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -896,7 +953,7 @@ function Assistant() {
       window.clearTimeout(start)
       window.clearInterval(repeat)
     }
-  }, [open, busy, speakingIndex, greeting])
+  }, [open, busy, speakingIndex, greeting, position])
   useEffect(() => {
     if (!walking || greeting) return
     const stop = window.setTimeout(() => setWalking(false), 6200)
@@ -947,8 +1004,79 @@ function Assistant() {
       setBusy(false)
     }
   }
+  function startDrag(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (event.pointerType === 'mouse' && event.button !== 0) return
+    dragCleanupRef.current?.()
+    const rect = event.currentTarget.getBoundingClientRect()
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: { x: rect.left, y: rect.top },
+      moved: false,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const move = (pointer: globalThis.PointerEvent) => {
+      const drag = dragRef.current
+      if (!drag || drag.pointerId !== pointer.pointerId) return
+      const dx = pointer.clientX - drag.startX
+      const dy = pointer.clientY - drag.startY
+      if (!drag.moved && Math.hypot(dx, dy) < 6) return
+      drag.moved = true
+      const next = clampKeeper({ x: drag.origin.x + dx, y: drag.origin.y + dy })
+      latestPositionRef.current = next
+      setPosition(next)
+      setWalking(false)
+      setGreeting(false)
+    }
+    const finish = (pointer: globalThis.PointerEvent) => {
+      const drag = dragRef.current
+      if (!drag || drag.pointerId !== pointer.pointerId) return
+      if (drag.moved) {
+        suppressClickRef.current = true
+        window.setTimeout(() => {
+          suppressClickRef.current = false
+        }, 0)
+        try {
+          localStorage.setItem(keeperPositionKey, JSON.stringify(latestPositionRef.current))
+        } catch {
+          // The current position remains usable until the page reloads.
+        }
+      }
+      dragRef.current = null
+      dragCleanupRef.current?.()
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', finish)
+    window.addEventListener('pointercancel', finish)
+    dragCleanupRef.current = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', finish)
+      window.removeEventListener('pointercancel', finish)
+      dragCleanupRef.current = null
+    }
+  }
+  const panelWidth = Math.min(375, viewport.width - 24)
+  const panelHeight = Math.min(510, Math.max(160, viewport.height - 160))
+  const panelStyle = position
+    ? {
+        left: Math.max(
+          12,
+          Math.min(position.x + 112 - panelWidth, viewport.width - panelWidth - 12),
+        ),
+        top:
+          position.y - panelHeight - 10 >= 12
+            ? position.y - panelHeight - 10
+            : Math.min(position.y + 138, viewport.height - panelHeight - 12),
+        width: panelWidth,
+        height: panelHeight,
+      }
+    : undefined
   return (
-    <div className={`assistant-root${walking ? ' strolling' : ''}${greeting ? ' greeting' : ''}`}>
+    <div
+      className={`assistant-root${walking ? ' strolling' : ''}${greeting ? ' greeting' : ''}${position ? ' positioned' : ''}`}
+      style={position ? { left: position.x, top: position.y } : undefined}
+    >
       <button
         type="button"
         className={`assistant-trigger${open ? ' active' : ''}${busy ? ' waiting' : ''}${speakingIndex !== null ? ' speaking' : ''}${greeting ? ' greeting' : ''}${walking ? ' walking' : ''}`}
@@ -956,16 +1084,21 @@ function Assistant() {
         onMouseLeave={() => setGreeting(false)}
         onFocus={() => setGreeting(true)}
         onBlur={() => setGreeting(false)}
+        onPointerDown={startDrag}
         onClick={() => {
+          if (suppressClickRef.current) return
           if (open && 'speechSynthesis' in window) window.speechSynthesis.cancel()
           setSpeakingIndex(null)
           setOpen(!open)
         }}
         aria-label={open ? '关闭数字助手' : '打开数字助手'}
+        aria-description="按住并拖动可以调整位置"
         aria-expanded={open}
+        title="按住拖动我"
       >
         <img
           className="assistant-character"
+          draggable={false}
           src={
             greeting
               ? '/images/blog-keeper-wave.png'
@@ -993,7 +1126,11 @@ function Assistant() {
         )}
       </button>
       {open && (
-        <section className="assistant-panel" aria-label="数字助手对话">
+        <section
+          className={`assistant-panel${position ? ' positioned' : ''}`}
+          style={panelStyle}
+          aria-label="数字助手对话"
+        >
           <div className="assistant-head">
             <div className="assistant-mini">
               <img src="/images/blog-keeper.png" alt="" />
@@ -1004,6 +1141,23 @@ function Assistant() {
                 <i /> 从文章里找答案
               </span>
             </div>
+            {position && (
+              <button
+                type="button"
+                className="assistant-reset"
+                onClick={() => {
+                  setPosition(null)
+                  latestPositionRef.current = null
+                  try {
+                    localStorage.removeItem(keeperPositionKey)
+                  } catch {
+                    // Reset still works for the current page.
+                  }
+                }}
+              >
+                归位
+              </button>
+            )}
             <button type="button" aria-label="关闭对话" onClick={() => setOpen(false)}>
               <X size={19} />
             </button>

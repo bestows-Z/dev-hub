@@ -1306,6 +1306,36 @@ body {
 .assistant-root.strolling {
   animation: keeper-stroll 6.2s ease-in-out both;
 }
+.assistant-root.positioned {
+  right: auto;
+  bottom: auto;
+}
+.assistant-trigger {
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.assistant-trigger:active {
+  cursor: grabbing;
+}
+.assistant-panel.positioned {
+  position: fixed;
+  right: auto;
+  bottom: auto;
+}
+.assistant-reset {
+  margin-left: auto;
+  padding: 5px 8px;
+  border: 1px solid #d4e1dd;
+  border-radius: 7px;
+  background: #fff;
+  color: #52726c;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.assistant-reset + button {
+  margin-left: 0;
+}
 .assistant-root.strolling.greeting {
   animation-play-state: paused;
 }

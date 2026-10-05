@@ -18,6 +18,8 @@
 
 前台提供 `/login`、`/register` 和 `/account` 页面。注册后自动登录；会话令牌保存在当前浏览器标签页的 `sessionStorage`，关闭标签页后需要重新登录。管理员通过同一账户进入 `/admin`。
 
+页面右下角的博客小助手可以用鼠标或触屏拖动。位置保存在浏览器本地；打开对话后点击“归位”可恢复默认位置。
+
 开发时前端由 Vite 代理 `/api` 到 `http://localhost:8080`。API 健康检查：`GET /api/v1/health`。
 
 文章助手默认从已发布文章中检索并返回相关段落与原文链接。若要让它生成自然语言回答，在 `.env` 中同时设置 `ASSISTANT_API_BASE_URL`、`ASSISTANT_API_KEY`、`ASSISTANT_MODEL`，服务端会调用兼容 Chat Completions 的模型接口。密钥只保存在服务端；模型不可用时仍返回文章摘录。
