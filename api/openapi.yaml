@@ -285,6 +285,82 @@ paths:
             text/css: { schema: { type: string } }
         "404": { description: 项目未发布或文件不存在 }
 
+  /api/v1/project-runtimes/{slug}/:
+    get:
+      tags: [Projects]
+      summary: 打开已发布项目的前端首页
+      operationId: getProjectRuntimeHome
+      parameters:
+        - { in: path, name: slug, required: true, schema: { type: string } }
+      responses:
+        "200": { description: 项目前端响应 }
+        "404": { description: 项目未发布或未运行 }
+        "502": { description: 项目服务暂时不可用 }
+
+  /api/v1/project-runtimes/{slug}/{filepath}:
+    get:
+      tags: [Projects]
+      summary: 转发公开项目的前端或后端服务
+      description: >-
+        `/api/v1/project-runtimes/{slug}/` 连接前端；`/api/v1/project-runtimes/{slug}/backend/` 连接后端。仅公开已发布、运行中的项目。实际支持常规 HTTP 方法，此处用 GET 展示入口；首版不支持 WebSocket 升级。响应是项目自身内容，不使用 DevHub 的 code/message/data 包装。
+      operationId: getProjectRuntime
+      parameters:
+        - { in: path, name: slug, required: true, schema: { type: string } }
+        - { in: path, name: filepath, required: true, schema: { type: string }, description: 前端相对路径；以 backend/ 开头时转给后端 }
+      responses:
+        "200": { description: 项目服务返回的内容 }
+        "404": { description: 项目未发布或未运行 }
+        "502": { description: 项目服务暂时不可用 }
+    post:
+      tags: [Projects]
+      summary: 向项目后端发送 POST 请求
+      operationId: postProjectRuntime
+      parameters:
+        - { in: path, name: slug, required: true, schema: { type: string } }
+        - { in: path, name: filepath, required: true, schema: { type: string }, description: 以 backend/ 开头的后端相对路径 }
+      requestBody:
+        content:
+          application/json: { schema: {} }
+      responses:
+        "200": { description: 项目后端响应，状态码由项目决定 }
+        "404": { description: 项目未发布或未运行 }
+    put:
+      tags: [Projects]
+      summary: 向项目后端发送 PUT 请求
+      operationId: putProjectRuntime
+      parameters:
+        - { in: path, name: slug, required: true, schema: { type: string } }
+        - { in: path, name: filepath, required: true, schema: { type: string }, description: 以 backend/ 开头的后端相对路径 }
+      requestBody:
+        content:
+          application/json: { schema: {} }
+      responses:
+        "200": { description: 项目后端响应，状态码由项目决定 }
+        "404": { description: 项目未发布或未运行 }
+    patch:
+      tags: [Projects]
+      summary: 向项目后端发送 PATCH 请求
+      operationId: patchProjectRuntime
+      parameters:
+        - { in: path, name: slug, required: true, schema: { type: string } }
+        - { in: path, name: filepath, required: true, schema: { type: string }, description: 以 backend/ 开头的后端相对路径 }
+      requestBody:
+        content:
+          application/json: { schema: {} }
+      responses:
+        "200": { description: 项目后端响应，状态码由项目决定 }
+        "404": { description: 项目未发布或未运行 }
+    delete:
+      tags: [Projects]
+      summary: 向项目后端发送 DELETE 请求
+      operationId: deleteProjectRuntime
+      parameters:
+        - { in: path, name: slug, required: true, schema: { type: string } }
+        - { in: path, name: filepath, required: true, schema: { type: string }, description: 以 backend/ 开头的后端相对路径 }
+      responses:
+        "200": { description: 项目后端响应，状态码由项目决定 }
+        "404": { description: 项目未发布或未运行 }
+
   /api/v1/admin/orders:
     get:
       tags: [Admin]
@@ -904,7 +980,7 @@ components:
 
     Project:
       type: object
-      required: [id, slug, title, description, cover_url, tags, preview_url, source_url]
+      required: [id, slug, title, description, cover_url, tags, preview_url, backend_url, runtime_status, source_url]
       properties:
         id: { type: integer, format: int64 }
         slug: { type: string }
@@ -915,6 +991,8 @@ components:
           type: array
           items: { type: string }
         preview_url: { type: string, description: 隔离来源的预览入口；为空则暂不可预览 }
+        backend_url: { type: string, description: 运行中的项目后端入口，否则为空 }
+        runtime_status: { type: string, enum: [stopped, running] }
         source_url: { type: string }
 
     Product:

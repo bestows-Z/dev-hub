@@ -565,6 +565,11 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
               在线预览 <ExternalLink size={16} />
             </a>
           )}
+          {project.backend_url && (
+            <a href={project.backend_url} target="_blank" rel="noopener noreferrer">
+              API 预览 <ExternalLink size={16} />
+            </a>
+          )}
           {project.source_url && (
             <a
               href={project.source_url}

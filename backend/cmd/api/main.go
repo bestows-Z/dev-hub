@@ -73,9 +73,10 @@ func main() {
 		logger.Fatal("initialize project storage failed", zap.Error(err))
 	}
 	previewHandler := project.NewPreviewHandler(postgresClient.DB, objectStore, logger)
+	runtimeHandler := project.NewRuntimeHandler(postgresClient.DB, logger)
 	adminHandler := admin.NewHandler(postgresClient.DB, objectStore, logger)
 	assistantHandler := assistant.NewHandler(postgresClient.DB, cfg.Assistant, logger)
-	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler, previewHandler, adminHandler, assistantHandler)
+	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler, previewHandler, runtimeHandler, adminHandler, assistantHandler)
 	address := fmt.Sprintf(
 		"%s:%d",
 		cfg.HTTP.Host,

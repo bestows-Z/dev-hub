@@ -55,9 +55,7 @@ func (h *PreviewHandler) Serve(c *gin.Context) {
 		"Referrer-Policy":              "no-referrer",
 		"X-Content-Type-Options":       "nosniff",
 		"Cache-Control":                "public, max-age=60",
-	}
-	if strings.EqualFold(path.Ext(file), ".html") || strings.EqualFold(path.Ext(file), ".htm") {
-		headers["Content-Security-Policy"] = "sandbox allow-scripts; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; connect-src 'none'; form-action 'none'; base-uri 'none'"
+		"Content-Security-Policy":      "sandbox allow-scripts; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; connect-src 'none'; form-action 'none'; base-uri 'none'",
 	}
 	c.DataFromReader(http.StatusOK, size, contentType, object, headers)
 }

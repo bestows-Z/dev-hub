@@ -35,6 +35,8 @@ export interface Project {
   cover_url: string
   tags: string[]
   preview_url: string
+  backend_url: string
+  runtime_status: string
   source_url: string
 }
 export interface Page<T> {

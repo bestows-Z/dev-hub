@@ -28,7 +28,9 @@ type projectInput struct {
 func validProjectInput(input projectInput) bool {
 	localPreview := strings.TrimPrefix(input.PreviewURL, "/api/v1/project-previews/")
 	localSlug := strings.TrimSuffix(localPreview, "/index.html")
-	validPreviewURL := input.PreviewURL == "" || validWebURL(input.PreviewURL) || (localPreview != input.PreviewURL && validSlug(localSlug) && localPreview == localSlug+"/index.html")
+	runtimePreview := strings.TrimPrefix(input.PreviewURL, "/api/v1/project-runtimes/")
+	runtimeSlug := strings.TrimSuffix(runtimePreview, "/")
+	validPreviewURL := input.PreviewURL == "" || validWebURL(input.PreviewURL) || (localPreview != input.PreviewURL && validSlug(localSlug) && localPreview == localSlug+"/index.html") || (runtimePreview != input.PreviewURL && validSlug(runtimeSlug) && runtimePreview == runtimeSlug+"/")
 	return validSlug(input.Slug) && clean(input.Title) != "" && validPreviewURL && (input.SourceURL == "" || validWebURL(input.SourceURL)) && (input.CoverURL == "" || validWebURL(input.CoverURL))
 }
 
@@ -58,7 +60,7 @@ func (h *Handler) CreateProject(c *gin.Context) {
 	if status == "" {
 		status = "draft"
 	}
-	item := project.Project{Slug: input.Slug, Title: clean(input.Title), Description: clean(input.Description), CoverURL: input.CoverURL, Tags: input.Tags, PreviewURL: input.PreviewURL, SourceURL: input.SourceURL, Status: status}
+	item := project.Project{Slug: input.Slug, Title: clean(input.Title), Description: clean(input.Description), CoverURL: input.CoverURL, Tags: input.Tags, PreviewURL: input.PreviewURL, RuntimeStatus: "stopped", SourceURL: input.SourceURL, Status: status}
 	if item.Tags == nil {
 		item.Tags = []string{}
 	}
@@ -90,7 +92,10 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	}
 	item.Slug, item.Title, item.Description, item.CoverURL = input.Slug, clean(input.Title), clean(input.Description), input.CoverURL
 	item.Tags, item.PreviewURL, item.SourceURL, item.Status = input.Tags, input.PreviewURL, input.SourceURL, status
-	if item.BundlePrefix != "" {
+	if item.RuntimeStatus == "running" {
+		item.PreviewURL = fmt.Sprintf("/api/v1/project-runtimes/%s/", item.Slug)
+		item.BackendURL = fmt.Sprintf("/api/v1/project-runtimes/%s/backend/", item.Slug)
+	} else if item.BundlePrefix != "" {
 		item.PreviewURL = fmt.Sprintf("/api/v1/project-previews/%s/index.html", item.Slug)
 	}
 	if item.Tags == nil {
@@ -111,6 +116,10 @@ func (h *Handler) DeleteProject(c *gin.Context) {
 	var item project.Project
 	if err := h.db.WithContext(c.Request.Context()).First(&item, id).Error; err != nil {
 		h.failure(c, "find project", err)
+		return
+	}
+	if item.RuntimeStatus == "running" {
+		response.Fail(c, 40906, "stop the project runtime before deleting it")
 		return
 	}
 	result := h.db.WithContext(c.Request.Context()).Delete(&item)
@@ -181,7 +190,11 @@ func (h *Handler) UploadProjectBundle(c *gin.Context) {
 		}
 	}
 	previewURL := fmt.Sprintf("/api/v1/project-previews/%s/index.html", item.Slug)
-	if err := h.db.WithContext(c.Request.Context()).Model(&item).Updates(map[string]any{"bundle_prefix": prefix, "preview_url": previewURL}).Error; err != nil {
+	updates := map[string]any{"bundle_prefix": prefix}
+	if item.RuntimeStatus != "running" {
+		updates["preview_url"] = previewURL
+	}
+	if err := h.db.WithContext(c.Request.Context()).Model(&item).Updates(updates).Error; err != nil {
 		_ = h.store.RemovePrefix(c.Request.Context(), prefix)
 		h.failure(c, "save project bundle", err)
 		return

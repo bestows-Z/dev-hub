@@ -413,7 +413,7 @@ export default function Admin() {
                 <span>
                   {kind === 'orders'
                     ? `${formatPrice(Number(item.total_cents || 0))} · ${String(item.email)} · ${String(item.status)}`
-                    : `${String(item.slug || item.url || '')} · ${kind === 'links' ? (item.enabled ? '公开' : '隐藏') : item.status === 'published' ? '公开' : '草稿'}`}
+                    : `${String(item.slug || item.url || '')} · ${kind === 'links' ? (item.enabled ? '公开' : '隐藏') : item.status === 'published' ? '公开' : '草稿'}${kind === 'projects' && item.runtime_status === 'running' ? ' · 前后端运行中' : ''}`}
                   {kind === 'orders' && item.created_at
                     ? ` · ${formatDate(String(item.created_at))}`
                     : ''}
