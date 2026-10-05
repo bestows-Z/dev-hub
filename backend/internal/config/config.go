@@ -9,13 +9,20 @@ import (
 )
 
 type Config struct {
-	App      AppConfig
-	HTTP     HTTPConfig
-	Postgres PostgresConfig
-	Auth     AuthConfig
+	App       AppConfig
+	HTTP      HTTPConfig
+	Postgres  PostgresConfig
+	Auth      AuthConfig
+	Assistant AssistantConfig
 }
 
 type AuthConfig struct{ JWTSecret string }
+
+type AssistantConfig struct {
+	APIBaseURL string
+	APIKey     string
+	Model      string
+}
 
 type AppConfig struct {
 	Env string
@@ -79,6 +86,9 @@ func Load() (*Config, error) {
 		"POSTGRES_MAX_OPEN_CONNS",
 		"POSTGRES_MAX_IDLE_CONNS",
 		"AUTH_JWT_SECRET",
+		"ASSISTANT_API_BASE_URL",
+		"ASSISTANT_API_KEY",
+		"ASSISTANT_MODEL",
 	}
 
 	for _, key := range envKeys {
@@ -129,6 +139,11 @@ func Load() (*Config, error) {
 			MaxIdleConns: v.GetInt("POSTGRES_MAX_IDLE_CONNS"),
 		},
 		Auth: AuthConfig{JWTSecret: v.GetString("AUTH_JWT_SECRET")},
+		Assistant: AssistantConfig{
+			APIBaseURL: v.GetString("ASSISTANT_API_BASE_URL"),
+			APIKey:     v.GetString("ASSISTANT_API_KEY"),
+			Model:      v.GetString("ASSISTANT_MODEL"),
+		},
 	}
 
 	if cfg.Postgres.User == "" {

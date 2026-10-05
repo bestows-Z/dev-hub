@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bestows-Z/dev-hub/backend/internal/admin"
+	"github.com/bestows-Z/dev-hub/backend/internal/assistant"
 	"github.com/bestows-Z/dev-hub/backend/internal/auth"
 	"github.com/bestows-Z/dev-hub/backend/internal/config"
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
@@ -67,7 +68,8 @@ func main() {
 	storeHandler := store.NewHandler(store.NewRepository(postgresClient.DB), logger)
 	projectHandler := project.NewHandler(project.NewRepository(postgresClient.DB), logger)
 	adminHandler := admin.NewHandler(postgresClient.DB, logger)
-	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler, adminHandler)
+	assistantHandler := assistant.NewHandler(postgresClient.DB, cfg.Assistant, logger)
+	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler, adminHandler, assistantHandler)
 	address := fmt.Sprintf(
 		"%s:%d",
 		cfg.HTTP.Host,

@@ -18,6 +18,8 @@
 
 开发时前端由 Vite 代理 `/api` 到 `http://localhost:8080`。API 健康检查：`GET /api/v1/health`。
 
+文章助手默认从已发布文章中检索并返回相关段落与原文链接。若要让它生成自然语言回答，在 `.env` 中同时设置 `ASSISTANT_API_BASE_URL`、`ASSISTANT_API_KEY`、`ASSISTANT_MODEL`，服务端会调用兼容 Chat Completions 的模型接口。密钥只保存在服务端；模型不可用时仍返回文章摘录。
+
 ## 接口文档
 
 在 Apifox 选择“项目设置 → 导入数据 → OpenAPI/Swagger”，导入 `api/openapi.yaml`。每次接口行为变更应与该文件一起提交。

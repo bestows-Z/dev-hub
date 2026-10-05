@@ -40,8 +40,51 @@ tags:
   - name: Admin
     description: 管理员内容与订单维护；先通过登录接口获取 Bearer Token
 
+  - name: Assistant
+    description: 基于已发布文章的问答；可选接入兼容 Chat Completions 的模型
+
 
 paths:
+
+  /api/v1/assistant/chat:
+    post:
+      tags: [Assistant]
+      summary: 向文章助手提问
+      description: 仅检索已发布文章。未配置模型时返回相关原文摘录，配置模型后根据摘录生成回答；始终附来源。单 IP 每分钟最多 20 次。
+      operationId: assistantChat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question: { type: string, minLength: 2, maxLength: 500, example: 数据库库存是怎么更新的？ }
+      responses:
+        "200":
+          description: code 为 0 时成功；无结果时返回提示与空来源列表
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message, data]
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string, example: success }
+                  data:
+                    type: object
+                    required: [answer, sources]
+                    properties:
+                      answer: { type: string }
+                      sources:
+                        type: array
+                        items:
+                          type: object
+                          required: [title, url]
+                          properties:
+                            title: { type: string }
+                            url: { type: string, example: /articles/postgres-notes }
 
   /api/v1/admin/articles:
     get:

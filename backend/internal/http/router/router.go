@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bestows-Z/dev-hub/backend/internal/admin"
+	"github.com/bestows-Z/dev-hub/backend/internal/assistant"
 	"github.com/bestows-Z/dev-hub/backend/internal/auth"
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
@@ -16,7 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler, adminHandler *admin.Handler) *gin.Engine {
+func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler, adminHandler *admin.Handler, assistantHandler *assistant.Handler) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
@@ -63,6 +64,7 @@ func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, co
 	v1.GET("/products/:slug", storeHandler.GetProduct)
 	v1.POST("/orders", storeHandler.CreateOrder)
 	v1.GET("/projects", projectHandler.List)
+	v1.POST("/assistant/chat", assistantHandler.Chat)
 	adminGroup := v1.Group("/admin", authHandler.RequireUser(), authHandler.RequireAdmin())
 	adminGroup.GET("/articles", adminHandler.ListArticles)
 	adminGroup.POST("/articles", adminHandler.CreateArticle)
