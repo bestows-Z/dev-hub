@@ -159,6 +159,7 @@ backend/vendor/
 # Node
 node_modules/
 dist/
+*.tsbuildinfo
 .vite/
 
 # IDE

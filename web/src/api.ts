@@ -1,0 +1,37 @@
+export interface ArticleSummary {
+  id: number
+  slug: string
+  title: string
+  excerpt: string
+  cover_url: string
+  tags: string[]
+  published_at: string | null
+}
+export interface Article extends ArticleSummary { body_md: string; created_at: string }
+export interface FriendLink { id: number; name: string; url: string; avatar_url: string; description: string }
+export interface Product { id: number; slug: string; name: string; description: string; price_cents: number; cover_url: string; stock: number }
+export interface Project { id: number; slug: string; title: string; description: string; cover_url: string; tags: string[]; preview_url: string; source_url: string }
+export interface Page<T> { items: T[]; total: number; page: number; page_size: number }
+
+interface Envelope<T> { code: number; message: string; data: T }
+
+export async function api<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`/api/v1${path}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+  })
+  let envelope: Envelope<T>
+  try { envelope = await response.json() as Envelope<T> }
+  catch { throw new Error('服务暂时无法响应，请稍后重试。') }
+  if (!response.ok || envelope.code !== 0) throw new Error(envelope.message || '请求失败')
+  return envelope.data
+}
+
+export function formatDate(value: string | null): string {
+  if (!value) return '近期发布'
+  return new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(value))
+}
+
+export function formatPrice(cents: number): string {
+  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(cents / 100)
+}
