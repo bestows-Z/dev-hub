@@ -233,6 +233,58 @@ paths:
       responses:
         "200": { $ref: "#/components/responses/AdminSuccess" }
 
+  /api/v1/admin/projects/{id}/bundle:
+    parameters:
+      - { $ref: "#/components/parameters/AdminID" }
+    post:
+      tags: [Admin]
+      summary: 上传静态站点 ZIP 到 MinIO
+      description: ZIP 必须包含 index.html，可位于单层构建目录中。仅允许网页资源类型；压缩包不超过 20 MiB，单文件解压不超过 10 MiB，总解压不超过 100 MiB。项目发布后可访问预览 URL。重新上传会替换旧版本。
+      operationId: adminUploadProjectBundle
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary, description: 静态站点 ZIP }
+      responses:
+        "200":
+          description: code 为 0 时上传成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string, example: success }
+                  data:
+                    type: object
+                    properties:
+                      preview_url: { type: string, example: /api/v1/project-previews/my-project/index.html }
+                      files: { type: integer, example: 12 }
+
+  /api/v1/project-previews/{slug}/{filepath}:
+    get:
+      tags: [Projects]
+      summary: 读取公开项目的静态预览资源
+      description: 返回原始 HTML、JS、CSS 或图片内容。预览 HTML 带 CSP sandbox；建议在 iframe 中再设置 sandbox。路径仅可访问已发布项目 ZIP 中的资源。
+      operationId: getProjectPreviewFile
+      parameters:
+        - { in: path, name: slug, required: true, schema: { type: string } }
+        - { in: path, name: filepath, required: true, schema: { type: string }, description: 相对文件路径，可含斜线 }
+      responses:
+        "200":
+          description: 静态预览文件，Content-Type 随文件类型变化
+          content:
+            text/html: { schema: { type: string } }
+            application/javascript: { schema: { type: string } }
+            text/css: { schema: { type: string } }
+        "404": { description: 项目未发布或文件不存在 }
+
   /api/v1/admin/orders:
     get:
       tags: [Admin]
@@ -813,7 +865,7 @@ components:
               description: { type: string }
               cover_url: { type: string, format: uri }
               tags: { type: array, items: { type: string } }
-              preview_url: { type: string, format: uri }
+              preview_url: { type: string, description: 可填外部 HTTP(S) 地址；上传站点后由服务器生成站内路径 }
               source_url: { type: string, format: uri }
               status: { type: string, enum: [draft, published], default: draft }
 

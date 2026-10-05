@@ -17,7 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler, adminHandler *admin.Handler, assistantHandler *assistant.Handler) *gin.Engine {
+func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler, previewHandler *project.PreviewHandler, adminHandler *admin.Handler, assistantHandler *assistant.Handler) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
@@ -64,6 +64,7 @@ func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, co
 	v1.GET("/products/:slug", storeHandler.GetProduct)
 	v1.POST("/orders", storeHandler.CreateOrder)
 	v1.GET("/projects", projectHandler.List)
+	v1.GET("/project-previews/:slug/*filepath", previewHandler.Serve)
 	v1.POST("/assistant/chat", assistantHandler.Chat)
 	adminGroup := v1.Group("/admin", authHandler.RequireUser(), authHandler.RequireAdmin())
 	adminGroup.GET("/articles", adminHandler.ListArticles)
@@ -82,6 +83,7 @@ func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, co
 	adminGroup.POST("/projects", adminHandler.CreateProject)
 	adminGroup.PUT("/projects/:id", adminHandler.UpdateProject)
 	adminGroup.DELETE("/projects/:id", adminHandler.DeleteProject)
+	adminGroup.POST("/projects/:id/bundle", adminHandler.UploadProjectBundle)
 	adminGroup.GET("/orders", adminHandler.ListOrders)
 	adminGroup.PATCH("/orders/:id/status", adminHandler.UpdateOrderStatus)
 	return r

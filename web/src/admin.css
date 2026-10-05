@@ -262,6 +262,37 @@
   color: #b45858;
   border-color: #dcaaaa;
 }
+.admin-row-actions a,
+.admin-upload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #d9e4e2;
+  border-radius: 7px;
+  background: #fff;
+  color: #647173;
+  padding: 8px 11px;
+  font-size: 12px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.admin-row-actions a:hover,
+.admin-upload:hover {
+  border-color: #78bdb7;
+  color: #2e8e88;
+}
+.admin-upload input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.admin-upload:focus-within {
+  outline: 2px solid #4baa9f;
+  outline-offset: 2px;
+}
 @media (max-width: 650px) {
   .admin-page {
     padding-top: 40px;

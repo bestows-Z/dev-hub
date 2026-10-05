@@ -53,7 +53,10 @@ interface Envelope<T> {
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`/api/v1${path}`, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: {
+      ...(options?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      ...options?.headers,
+    },
   })
   let envelope: Envelope<T>
   try {

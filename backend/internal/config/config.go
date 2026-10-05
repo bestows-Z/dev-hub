@@ -14,6 +14,7 @@ type Config struct {
 	Postgres  PostgresConfig
 	Auth      AuthConfig
 	Assistant AssistantConfig
+	Storage   StorageConfig
 }
 
 type AuthConfig struct{ JWTSecret string }
@@ -22,6 +23,14 @@ type AssistantConfig struct {
 	APIBaseURL string
 	APIKey     string
 	Model      string
+}
+
+type StorageConfig struct {
+	Endpoint  string
+	AccessKey string
+	SecretKey string
+	Bucket    string
+	UseSSL    bool
 }
 
 type AppConfig struct {
@@ -89,6 +98,11 @@ func Load() (*Config, error) {
 		"ASSISTANT_API_BASE_URL",
 		"ASSISTANT_API_KEY",
 		"ASSISTANT_MODEL",
+		"MINIO_ENDPOINT",
+		"MINIO_ROOT_USER",
+		"MINIO_ROOT_PASSWORD",
+		"MINIO_BUCKET",
+		"MINIO_USE_SSL",
 	}
 
 	for _, key := range envKeys {
@@ -113,6 +127,8 @@ func Load() (*Config, error) {
 
 	v.SetDefault("POSTGRES_MAX_OPEN_CONNS", 50)
 	v.SetDefault("POSTGRES_MAX_IDLE_CONNS", 10)
+	v.SetDefault("MINIO_ENDPOINT", "127.0.0.1:9000")
+	v.SetDefault("MINIO_BUCKET", "devhub-projects")
 
 	cfg := &Config{
 		App: AppConfig{
@@ -143,6 +159,13 @@ func Load() (*Config, error) {
 			APIBaseURL: v.GetString("ASSISTANT_API_BASE_URL"),
 			APIKey:     v.GetString("ASSISTANT_API_KEY"),
 			Model:      v.GetString("ASSISTANT_MODEL"),
+		},
+		Storage: StorageConfig{
+			Endpoint:  v.GetString("MINIO_ENDPOINT"),
+			AccessKey: v.GetString("MINIO_ROOT_USER"),
+			SecretKey: v.GetString("MINIO_ROOT_PASSWORD"),
+			Bucket:    v.GetString("MINIO_BUCKET"),
+			UseSSL:    v.GetBool("MINIO_USE_SSL"),
 		},
 	}
 

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
+	"github.com/bestows-Z/dev-hub/backend/internal/storage"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -16,9 +17,12 @@ import (
 type Handler struct {
 	db     *gorm.DB
 	logger *zap.Logger
+	store  *storage.Store
 }
 
-func NewHandler(db *gorm.DB, logger *zap.Logger) *Handler { return &Handler{db, logger} }
+func NewHandler(db *gorm.DB, store *storage.Store, logger *zap.Logger) *Handler {
+	return &Handler{db: db, store: store, logger: logger}
+}
 
 var slugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 

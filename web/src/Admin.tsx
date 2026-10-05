@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Check, Edit3, LogOut, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import {
+  Check,
+  Edit3,
+  ExternalLink,
+  LogOut,
+  Plus,
+  RefreshCw,
+  Trash2,
+  UploadCloud,
+} from 'lucide-react'
 import { api, formatDate, formatPrice, type Page } from './api'
 import './admin.css'
 
@@ -237,6 +246,26 @@ export default function Admin() {
       setMessage(error instanceof Error ? error.message : '更新失败')
     }
   }
+  async function uploadBundle(item: Item, file?: File) {
+    if (!file) return
+    if (file.size > 20 * 1024 * 1024) {
+      setMessage('ZIP 文件不能超过 20 MiB')
+      return
+    }
+    setBusy(true)
+    setMessage('')
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      await request(`/admin/projects/${item.id}/bundle`, { method: 'POST', body })
+      setMessage(item.status === 'published' ? '预览已更新' : '预览已上传，发布项目后即可公开访问')
+      await refresh()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '上传失败')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   if (!authorized)
     return (
@@ -411,6 +440,32 @@ export default function Admin() {
                   </>
                 ) : (
                   <>
+                    {kind === 'projects' && (
+                      <>
+                        {item.preview_url && item.status === 'published' && (
+                          <a
+                            href={String(item.preview_url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`预览 ${String(item.title)}`}
+                          >
+                            <ExternalLink size={17} />
+                          </a>
+                        )}
+                        <label className="admin-upload" title="上传静态站点 ZIP">
+                          <UploadCloud size={17} /> 上传预览
+                          <input
+                            type="file"
+                            accept=".zip,application/zip"
+                            disabled={busy}
+                            onChange={(event) => {
+                              void uploadBundle(item, event.target.files?.[0])
+                              event.target.value = ''
+                            }}
+                          />
+                        </label>
+                      </>
+                    )}
                     <button
                       type="button"
                       onClick={() => setForm(normalize(kind, item))}

@@ -18,6 +18,7 @@ import (
 	httprouter "github.com/bestows-Z/dev-hub/backend/internal/http/router"
 	pg "github.com/bestows-Z/dev-hub/backend/internal/platform/postgres"
 	"github.com/bestows-Z/dev-hub/backend/internal/project"
+	"github.com/bestows-Z/dev-hub/backend/internal/storage"
 	"github.com/bestows-Z/dev-hub/backend/internal/store"
 	"github.com/bestows-Z/dev-hub/backend/internal/user"
 	"go.uber.org/zap"
@@ -67,9 +68,14 @@ func main() {
 	contentHandler := content.NewHandler(content.NewRepository(postgresClient.DB), logger)
 	storeHandler := store.NewHandler(store.NewRepository(postgresClient.DB), logger)
 	projectHandler := project.NewHandler(project.NewRepository(postgresClient.DB), logger)
-	adminHandler := admin.NewHandler(postgresClient.DB, logger)
+	objectStore, err := storage.New(cfg.Storage)
+	if err != nil {
+		logger.Fatal("initialize project storage failed", zap.Error(err))
+	}
+	previewHandler := project.NewPreviewHandler(postgresClient.DB, objectStore, logger)
+	adminHandler := admin.NewHandler(postgresClient.DB, objectStore, logger)
 	assistantHandler := assistant.NewHandler(postgresClient.DB, cfg.Assistant, logger)
-	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler, adminHandler, assistantHandler)
+	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler, previewHandler, adminHandler, assistantHandler)
 	address := fmt.Sprintf(
 		"%s:%d",
 		cfg.HTTP.Host,
