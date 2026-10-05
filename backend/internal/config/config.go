@@ -12,7 +12,10 @@ type Config struct {
 	App      AppConfig
 	HTTP     HTTPConfig
 	Postgres PostgresConfig
+	Auth     AuthConfig
 }
+
+type AuthConfig struct{ JWTSecret string }
 
 type AppConfig struct {
 	Env string
@@ -75,6 +78,7 @@ func Load() (*Config, error) {
 		"POSTGRES_TIMEZONE",
 		"POSTGRES_MAX_OPEN_CONNS",
 		"POSTGRES_MAX_IDLE_CONNS",
+		"AUTH_JWT_SECRET",
 	}
 
 	for _, key := range envKeys {
@@ -124,6 +128,7 @@ func Load() (*Config, error) {
 			MaxOpenConns: v.GetInt("POSTGRES_MAX_OPEN_CONNS"),
 			MaxIdleConns: v.GetInt("POSTGRES_MAX_IDLE_CONNS"),
 		},
+		Auth: AuthConfig{JWTSecret: v.GetString("AUTH_JWT_SECRET")},
 	}
 
 	if cfg.Postgres.User == "" {
@@ -136,6 +141,9 @@ func Load() (*Config, error) {
 
 	if cfg.Postgres.DBName == "" {
 		return nil, fmt.Errorf("POSTGRES_DB is required")
+	}
+	if len(cfg.Auth.JWTSecret) < 32 {
+		return nil, fmt.Errorf("AUTH_JWT_SECRET must contain at least 32 characters")
 	}
 
 	return cfg, nil

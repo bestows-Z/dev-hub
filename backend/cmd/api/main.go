@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bestows-Z/dev-hub/backend/internal/auth"
 	"github.com/bestows-Z/dev-hub/backend/internal/config"
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
 	httprouter "github.com/bestows-Z/dev-hub/backend/internal/http/router"
@@ -60,10 +61,11 @@ func main() {
 		userService,
 		logger,
 	)
+	authHandler := auth.NewHandler(userRepository, auth.NewTokens(cfg.Auth.JWTSecret), logger)
 	contentHandler := content.NewHandler(content.NewRepository(postgresClient.DB), logger)
 	storeHandler := store.NewHandler(store.NewRepository(postgresClient.DB), logger)
 	projectHandler := project.NewHandler(project.NewRepository(postgresClient.DB), logger)
-	router := httprouter.New(postgresClient.SQLDB, userHandler, contentHandler, storeHandler, projectHandler)
+	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler)
 	address := fmt.Sprintf(
 		"%s:%d",
 		cfg.HTTP.Host,

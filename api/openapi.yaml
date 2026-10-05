@@ -40,6 +40,66 @@ tags:
 
 paths:
 
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: 使用用户名或邮箱登录
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identifier, password]
+              properties:
+                identifier: { type: string, example: tianhao }
+                password: { type: string, format: password }
+      responses:
+        "200":
+          description: 成功时返回 12 小时访问令牌；凭证错误时检查 code
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message, data]
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string, example: success }
+                  data:
+                    type: object
+                    required: [access_token, token_type, expires_in, user]
+                    properties:
+                      access_token: { type: string }
+                      token_type: { type: string, example: Bearer }
+                      expires_in: { type: integer, example: 43200 }
+                      user: { $ref: "#/components/schemas/User" }
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: 读取当前登录用户
+      operationId: getCurrentUser
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: 当前用户
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code, message, data]
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string, example: success }
+                  data: { $ref: "#/components/schemas/User" }
+        "401":
+          description: 无效或缺少访问令牌
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessErrorResponse" }
+
   /api/v1/projects:
     get:
       tags: [Projects]
@@ -462,6 +522,12 @@ paths:
 
 
 components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
 
   schemas:
 
