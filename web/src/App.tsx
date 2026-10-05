@@ -3,6 +3,8 @@ import { Link, NavLink, Route, Routes, useLocation, useParams } from 'react-rout
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import Admin from './Admin'
+import { Account, Login, Register } from './Auth'
+import { authChanged, readUser } from './session'
 import {
   ArrowDown,
   ArrowRight,
@@ -18,6 +20,7 @@ import {
   Package,
   PenLine,
   Send,
+  UserRound,
   Volume2,
   VolumeX,
   X,
@@ -65,7 +68,17 @@ function useRemote<T>(path: string): Remote<T> {
 
 function Layout({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [visitor, setVisitor] = useState(readUser)
   const location = useLocation()
+  useEffect(() => {
+    const refresh = () => setVisitor(readUser())
+    window.addEventListener(authChanged, refresh)
+    window.addEventListener('storage', refresh)
+    return () => {
+      window.removeEventListener(authChanged, refresh)
+      window.removeEventListener('storage', refresh)
+    }
+  }, [])
   useEffect(() => {
     setMenuOpen(false)
     window.scrollTo({ top: 0, behavior: 'instant' })
@@ -120,6 +133,13 @@ function Layout({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="header-actions">
+            <Link
+              className="header-login"
+              to={visitor ? '/account' : '/login'}
+              aria-label={visitor ? `我的账户：${visitor.username}` : '登录或注册'}
+            >
+              <UserRound size={16} /> <span>{visitor ? visitor.username : '登录'}</span>
+            </Link>
             <a className="header-contact" href={contactHref} aria-label={contactLabel}>
               联系我 <ArrowUpRight size={16} />
             </a>
@@ -154,7 +174,7 @@ function Layout({ children }: { children: ReactNode }) {
           <span className="copyright">© {new Date().getFullYear()} DevHub</span>
         </div>
       </footer>
-      <Assistant />
+      {!['/login', '/register', '/account'].includes(location.pathname) && <Assistant />}
     </div>
   )
 }
@@ -1069,6 +1089,9 @@ export default function App() {
         <Route path="/shop" element={<Shop />} />
         <Route path="/shop/:slug" element={<ProductDetail />} />
         <Route path="/links" element={<Links />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/account" element={<Account />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

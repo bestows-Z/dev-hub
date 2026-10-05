@@ -9,7 +9,8 @@ import {
   Trash2,
   UploadCloud,
 } from 'lucide-react'
-import { api, formatDate, formatPrice, type Page } from './api'
+import { ApiError, api, formatDate, formatPrice, type Page } from './api'
+import { clearSession, saveSession, type LoginResult } from './session'
 import './admin.css'
 
 type Kind = 'articles' | 'projects' | 'products' | 'links' | 'orders'
@@ -130,6 +131,7 @@ export default function Admin() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [authorized, setAuthorized] = useState(false)
+  const [authRetry, setAuthRetry] = useState(0)
 
   const request = useCallback(
     <T,>(path: string, options?: RequestInit) =>
@@ -156,17 +158,22 @@ export default function Admin() {
     }
     request<{ role: number }>('/auth/me')
       .then((user) => {
-        if (user.role !== 1) throw new Error('当前账号没有管理员权限')
+        if (user.role !== 1) throw new ApiError('当前账号没有管理员权限', 403)
         setAuthorized(true)
         setMessage('')
       })
       .catch((error) => {
         setAuthorized(false)
-        sessionStorage.removeItem('devhub_admin_token')
-        setToken('')
-        setMessage(error instanceof Error ? error.message : '登录已失效')
+        if (error instanceof ApiError && error.status === 401) {
+          clearSession()
+          setToken('')
+        } else if (error instanceof ApiError && error.status === 403) {
+          sessionStorage.removeItem('devhub_admin_token')
+          setToken('')
+        }
+        setMessage(error instanceof Error ? error.message : '暂时无法验证登录状态')
       })
-  }, [token, request])
+  }, [token, request, authRetry])
   useEffect(() => {
     void refresh()
   }, [refresh])
@@ -176,12 +183,12 @@ export default function Admin() {
     setBusy(true)
     setMessage('')
     try {
-      const result = await api<{ access_token: string; user: { role: number } }>('/auth/login', {
+      const result = await api<LoginResult>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ identifier, password }),
       })
       if (result.user.role !== 1) throw new Error('当前账号没有管理员权限')
-      sessionStorage.setItem('devhub_admin_token', result.access_token)
+      saveSession(result)
       setToken(result.access_token)
       setPassword('')
     } catch (error) {
@@ -191,7 +198,7 @@ export default function Admin() {
     }
   }
   function logout() {
-    sessionStorage.removeItem('devhub_admin_token')
+    clearSession()
     setToken('')
     setItems([])
     setForm(null)
@@ -294,6 +301,11 @@ export default function Admin() {
           <button type="submit" disabled={busy}>
             {busy ? '登录中…' : '登录'}
           </button>
+          {token && (
+            <button type="button" onClick={() => setAuthRetry((value) => value + 1)}>
+              重试验证当前登录
+            </button>
+          )}
           {message && (
             <span className="admin-message" role="status">
               {message}

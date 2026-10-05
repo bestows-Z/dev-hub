@@ -95,6 +95,29 @@ body {
   font-size: 12px;
   padding: 8px 13px;
 }
+.header-login {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #4e6564;
+  font-size: 12px;
+  font-weight: 700;
+  max-width: 106px;
+}
+.header-login span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.header-login:hover {
+  color: #248a82;
+}
+.home-header .header-login {
+  color: #fff;
+}
+.home-header .header-login:hover {
+  color: #d7f4ec;
+}
 .home-header .header-contact {
   border-color: #ffffff8c;
   background: #ffffff21;
@@ -1326,6 +1349,13 @@ body {
     white-space: nowrap;
     font-size: 11px;
     padding: 7px 9px;
+  }
+  .header-login {
+    width: 30px;
+    justify-content: center;
+  }
+  .header-login span {
+    display: none;
   }
   .home-articles .article-card:first-child .article-visual {
     min-height: 0;

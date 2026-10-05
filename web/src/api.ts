@@ -52,6 +52,17 @@ interface Envelope<T> {
   data: T
 }
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public code?: number,
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`/api/v1${path}`, {
     ...options,
@@ -64,9 +75,10 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   try {
     envelope = (await response.json()) as Envelope<T>
   } catch {
-    throw new Error('服务暂时无法响应，请稍后重试。')
+    throw new ApiError('服务暂时无法响应，请稍后重试。', response.status)
   }
-  if (!response.ok || envelope.code !== 0) throw new Error(envelope.message || '请求失败')
+  if (!response.ok || envelope.code !== 0)
+    throw new ApiError(envelope.message || '请求失败', response.status, envelope.code)
   return envelope.data
 }
 
