@@ -1,0 +1,114 @@
+openapi: 3.0.3
+
+info:
+  title: DevHub API
+  description: DevHub 个人开发者平台 API
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:8080
+    description: 本地开发环境
+
+tags:
+  - name: System
+    description: 系统基础接口
+
+paths:
+  /api/v1/health:
+    get:
+      tags:
+        - System
+      summary: 服务存活检查
+      operationId: healthCheck
+
+      responses:
+        "200":
+          description: API 服务运行正常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /api/v1/ready:
+    get:
+      tags:
+        - System
+      summary: 服务就绪检查
+      description: 检查 DevHub 及 PostgreSQL 是否已经可以正常提供服务。
+      operationId: readinessCheck
+
+      responses:
+        "200":
+          description: 服务已经就绪
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyResponse"
+
+        "503":
+          description: 服务依赖不可用
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyErrorResponse"
+
+components:
+  schemas:
+
+    HealthResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+
+        message:
+          type: string
+          example: ok
+
+        data:
+          type: object
+          properties:
+            service:
+              type: string
+              example: devhub-api
+
+            status:
+              type: string
+              example: up
+
+    ReadyResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+
+        message:
+          type: string
+          example: ok
+
+        data:
+          type: object
+          properties:
+            postgres:
+              type: string
+              example: up
+
+    ReadyErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 50300
+
+        message:
+          type: string
+          example: service not ready
+
+        data:
+          type: object
+          properties:
+            postgres:
+              type: string
+              example: down
