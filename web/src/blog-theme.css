@@ -1050,3 +1050,321 @@ body {
     animation: none;
   }
 }
+
+/* Motion and editorial details for the content catalog. */
+.hero-cover {
+  animation:
+    cover-in 1.3s ease-out both,
+    river-drift 26s ease-in-out 1.3s infinite alternate;
+}
+@keyframes river-drift {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.045) translateX(-0.7%);
+  }
+}
+.section-motion {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.65s ease,
+    transform 0.65s cubic-bezier(0.2, 0.7, 0.25, 1);
+}
+.section-motion.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+.home-main .section:nth-child(2) {
+  transition-delay: 70ms;
+}
+.home-main .section:nth-child(3) {
+  transition-delay: 120ms;
+}
+.section-heading h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+}
+.section-number {
+  color: #aab9b7;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+.home-articles .article-card:first-child {
+  min-height: 250px;
+}
+.home-articles .article-card:first-child .article-visual {
+  min-height: 250px;
+}
+.featured-kicker {
+  color: #28776f;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+.article-card,
+.project-card,
+.product-card {
+  transition:
+    transform 0.28s cubic-bezier(0.2, 0.7, 0.25, 1),
+    box-shadow 0.28s,
+    border-color 0.28s;
+}
+.article-card {
+  position: relative;
+}
+.article-card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  height: 3px;
+  background: #53aaa3;
+  transition: width 0.38s ease;
+}
+.article-card:hover::after {
+  width: 100%;
+}
+.article-card.reveal:hover,
+.project-card.reveal:hover,
+.product-card.reveal:hover {
+  animation: none;
+  opacity: 1;
+  transform: translateY(-3px);
+}
+.article-visual {
+  background-size: cover;
+  background-position: center;
+  transition:
+    background-size 0.7s ease,
+    filter 0.35s ease;
+}
+.article-card:hover .article-visual {
+  filter: saturate(1.13);
+}
+.card-read svg,
+.text-link svg,
+.product-info svg {
+  transition: transform 0.25s ease;
+}
+.article-card:hover .card-read svg,
+.text-link:hover svg,
+.product-card:hover .product-info svg {
+  transform: translate(4px, -2px);
+}
+.project-card,
+.product-card {
+  overflow: hidden;
+}
+.project-cover,
+.product-cover {
+  overflow: hidden;
+  transition: filter 0.3s ease;
+}
+.project-card:hover .project-cover,
+.product-card:hover .product-cover {
+  filter: saturate(1.13);
+}
+.project-cover::before,
+.product-cover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(160deg, transparent 45%, #213c3a40 100%);
+}
+.project-cover > svg,
+.product-cover > svg {
+  transition: transform 0.4s ease;
+}
+.project-card:hover .project-cover > svg,
+.product-card:hover .product-cover > svg {
+  transform: translateY(-7px) rotate(-5deg);
+}
+.project-cover .project-index {
+  z-index: 1;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  background: #fffdf3db;
+  padding: 7px 9px;
+  border-radius: 3px;
+  bottom: 13px;
+  left: 14px;
+}
+.project-cover .project-cover-arrow {
+  left: auto;
+  right: 13px;
+  bottom: 13px;
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #49746f;
+  background: #fffdf3db;
+  opacity: 0;
+  transform: translateY(5px);
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
+}
+.project-card:hover .project-cover-arrow {
+  opacity: 1;
+  transform: translateY(0);
+}
+.project-cover .project-cover-arrow svg {
+  color: #49746f;
+  filter: none;
+}
+.product-info > div:last-child {
+  border-top: 1px solid #edf1f0;
+  padding-top: 15px;
+}
+.product-info strong {
+  font-size: 18px;
+}
+.catalog-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -15px 0 27px;
+}
+.catalog-chip {
+  border: 1px solid #d8e4e1;
+  background: #fff;
+  color: #687878;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 12px;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    transform 0.2s;
+}
+.catalog-chip:hover {
+  transform: translateY(-2px);
+  border-color: #83beb7;
+}
+.catalog-chip.active {
+  background: #26766e;
+  border-color: #26766e;
+  color: #fff;
+}
+.catalog-count {
+  margin-left: auto;
+  color: #5b6b6d;
+  font-size: 12px;
+}
+.shop-toolbar {
+  border-bottom: 1px solid #e3e9e8;
+  padding-bottom: 17px;
+}
+.shop-toolbar .catalog-count {
+  margin-left: 0;
+  margin-right: auto;
+}
+.shop-toolbar label {
+  color: #5b6b6d;
+  font-size: 12px;
+}
+.shop-toolbar select {
+  border: 1px solid #d9e3e1;
+  border-radius: 5px;
+  background: #fff;
+  color: #506160;
+  padding: 8px 31px 8px 10px;
+  font-size: 12px;
+}
+.assistant-root.strolling {
+  animation: keeper-stroll 6.2s ease-in-out both;
+}
+.assistant-root.strolling.greeting {
+  animation-play-state: paused;
+}
+@keyframes keeper-stroll {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  48%,
+  56% {
+    transform: translateX(-132px);
+  }
+}
+.assistant-trigger.walking .assistant-character {
+  animation: keeper-steps 0.42s ease-in-out infinite alternate;
+}
+.assistant-trigger.greeting .assistant-character {
+  animation: keeper-greet 0.75s ease-in-out infinite alternate;
+}
+@keyframes keeper-steps {
+  from {
+    transform: translateY(0) rotate(-2deg);
+  }
+  to {
+    transform: translateY(-5px) rotate(2deg);
+  }
+}
+@keyframes keeper-greet {
+  from {
+    transform: rotate(-2deg);
+  }
+  to {
+    transform: rotate(2deg);
+  }
+}
+@media (max-width: 560px) {
+  .header-inner {
+    gap: 10px;
+  }
+  .header-contact {
+    white-space: nowrap;
+    font-size: 11px;
+    padding: 7px 9px;
+  }
+  .home-articles .article-card:first-child .article-visual {
+    min-height: 0;
+  }
+  .home-articles .article-card:first-child {
+    min-height: 0;
+  }
+  .project-cover .project-cover-arrow {
+    opacity: 1;
+    transform: none;
+  }
+  .assistant-root.strolling {
+    animation: keeper-stroll-mobile 6.2s ease-in-out both;
+  }
+  @keyframes keeper-stroll-mobile {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    48%,
+    56% {
+      transform: translateX(-74px);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-cover,
+  .section-motion,
+  .assistant-root.strolling,
+  .assistant-trigger.walking .assistant-character,
+  .assistant-trigger.greeting .assistant-character {
+    animation: none;
+    transition: none;
+    transform: none;
+    opacity: 1;
+  }
+  .reveal {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

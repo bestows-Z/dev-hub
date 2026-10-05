@@ -69,6 +69,26 @@ function Layout({ children }: { children: ReactNode }) {
   useEffect(() => {
     setMenuOpen(false)
     window.scrollTo({ top: 0, behavior: 'instant' })
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const targets = document.querySelectorAll(
+      '.home-main .section, .home-sidebar .sidebar-card, .page-intro',
+    )
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('in-view')
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      { rootMargin: '0px 0px -45px 0px', threshold: 0.08 },
+    )
+    targets.forEach((target) => {
+      target.classList.add('section-motion')
+      observer.observe(target)
+    })
+    return () => observer.disconnect()
   }, [location.pathname])
   const links = [
     ['/articles', '文章'],
@@ -145,12 +165,14 @@ function SectionTitle({
   description,
   to,
   linkText,
+  number,
 }: {
   eyebrow: string
   title: string
   description?: string
   to?: string
   linkText?: string
+  number?: string
 }) {
   return (
     <div className="section-heading">
@@ -159,7 +181,10 @@ function SectionTitle({
           <span className="eyebrow-line" />
           {eyebrow}
         </span>
-        <h2>{title}</h2>
+        <h2>
+          {number && <span className="section-number">{number}</span>}
+          {title}
+        </h2>
         {description && <p>{description}</p>}
       </div>
       {to && (
@@ -176,11 +201,15 @@ function Status({
   error,
   empty,
   children,
+  emptyTitle = '暂时没有内容',
+  emptyText = '发布后会显示在这里。',
 }: {
   loading: boolean
   error: string
   empty: boolean
   children: ReactNode
+  emptyTitle?: string
+  emptyText?: string
 }) {
   if (loading)
     return (
@@ -200,8 +229,8 @@ function Status({
     return (
       <div className="status-card empty">
         <PenLine size={24} />
-        <strong>暂时没有内容</strong>
-        <span>发布后会显示在这里。</span>
+        <strong>{emptyTitle}</strong>
+        <span>{emptyText}</span>
       </div>
     )
   return <>{children}</>
@@ -211,7 +240,7 @@ function ArticleCard({ article, index = 0 }: { article: ArticleSummary; index?: 
   return (
     <Link
       to={`/articles/${article.slug}`}
-      className="article-card reveal"
+      className={`article-card reveal${index === 0 ? ' article-featured' : ''}`}
       style={{ animationDelay: `${index * 70}ms` }}
     >
       <div
@@ -221,6 +250,7 @@ function ArticleCard({ article, index = 0 }: { article: ArticleSummary; index?: 
         {!article.cover_url && <PenLine size={48} strokeWidth={1} aria-hidden="true" />}
       </div>
       <div className="article-info">
+        {index === 0 && <span className="featured-kicker">本期新文</span>}
         <div className="meta-row">
           <span>{formatDate(article.published_at)}</span>
           {article.tags?.[0] && (
@@ -261,10 +291,11 @@ function Home() {
       </section>
       <div className="home-content container" id="latest">
         <div className="home-main">
-          <section className="section">
+          <section className="section home-articles">
             <SectionTitle
               eyebrow="最近更新"
               title="文章"
+              number="01 /"
               description="技术笔记，也有一些日常。"
               to="/articles"
               linkText="更多文章"
@@ -273,6 +304,8 @@ function Home() {
               loading={articles.loading}
               error={articles.error}
               empty={!articles.data?.items.length}
+              emptyTitle="下一篇文章正在路上"
+              emptyText="写好的文字会在这里出现。"
             >
               <div className="article-grid">
                 {articles.data?.items.map((article, index) => (
@@ -281,10 +314,11 @@ function Home() {
               </div>
             </Status>
           </section>
-          <section className="section">
+          <section className="section home-projects">
             <SectionTitle
               eyebrow="动手做的"
               title="项目"
+              number="02 /"
               description="一些已经完成和仍在改进的作品。"
               to="/projects"
               linkText="全部项目"
@@ -293,6 +327,8 @@ function Home() {
               loading={projects.loading}
               error={projects.error}
               empty={!projects.data?.items.length}
+              emptyTitle="项目还在打磨"
+              emptyText="完成的作品会放在这里，也会附上预览入口。"
             >
               <div className="project-grid">
                 {projects.data?.items.map((project, index) => (
@@ -301,10 +337,11 @@ function Home() {
               </div>
             </Status>
           </section>
-          <section className="section">
+          <section className="section home-shop">
             <SectionTitle
               eyebrow="小小商店"
               title="数字作品"
+              number="03 /"
               description="整理好的工具与资源。"
               to="/shop"
               linkText="进入商店"
@@ -313,6 +350,8 @@ function Home() {
               loading={products.loading}
               error={products.error}
               empty={!products.data?.items.length}
+              emptyTitle="小店正在准备"
+              emptyText="工具和资源整理好后会摆上货架。"
             >
               <div className="product-grid">
                 {products.data?.items.map((product) => (
@@ -404,7 +443,13 @@ function Articles() {
           </button>
         </div>
       </form>
-      <Status loading={remote.loading} error={remote.error} empty={!remote.data?.items.length}>
+      <Status
+        loading={remote.loading}
+        error={remote.error}
+        empty={!remote.data?.items.length}
+        emptyTitle={search ? '没找到相关文章' : '文章正在整理'}
+        emptyText={search ? '换个关键词试试。' : '新的笔记发布后会出现在这里。'}
+      >
         <div className="article-grid">
           {remote.data?.items.map((article, index) => (
             <ArticleCard key={article.id} article={article} index={index} />
@@ -500,8 +545,11 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
         className="project-cover"
         style={project.cover_url ? { backgroundImage: `url(${project.cover_url})` } : undefined}
       >
-        <Code2 size={46} strokeWidth={1} />
-        <span>项目 0{index + 1}</span>
+        {!project.cover_url && <Code2 size={46} strokeWidth={1} />}
+        <span className="project-index">PROJECT / {String(index + 1).padStart(2, '0')}</span>
+        <span className="project-cover-arrow">
+          <ArrowUpRight size={19} />
+        </span>
       </div>
       <div className="project-body">
         <div className="tag-row">
@@ -535,12 +583,39 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
 
 function Projects() {
   const remote = useRemote<Page<Project>>('/projects?page_size=50')
+  const [activeTag, setActiveTag] = useState('全部')
+  const tags = [...new Set(remote.data?.items.flatMap((project) => project.tags || []) || [])]
+  const visibleProjects = remote.data?.items.filter(
+    (project) => activeTag === '全部' || project.tags?.includes(activeTag),
+  )
   return (
     <div className="container page-layout">
       <PageIntro eyebrow="项目记录" title="做过的项目" description="已经上线和正在维护的项目。" />
-      <Status loading={remote.loading} error={remote.error} empty={!remote.data?.items.length}>
+      {tags.length > 0 && (
+        <div className="catalog-toolbar" aria-label="按标签筛选项目">
+          {['全部', ...tags].map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className={tag === activeTag ? 'catalog-chip active' : 'catalog-chip'}
+              onClick={() => setActiveTag(tag)}
+              aria-pressed={tag === activeTag}
+            >
+              {tag}
+            </button>
+          ))}
+          <span className="catalog-count">{visibleProjects?.length || 0} 个项目</span>
+        </div>
+      )}
+      <Status
+        loading={remote.loading}
+        error={remote.error}
+        empty={!remote.data?.items.length}
+        emptyTitle="项目还在打磨"
+        emptyText="作品完成后会放在这里，附上预览与源码入口。"
+      >
         <div className="project-grid">
-          {remote.data?.items.map((project, index) => (
+          {visibleProjects?.map((project, index) => (
             <ProjectCard key={project.id} project={project} index={index} />
           ))}
         </div>
@@ -549,14 +624,18 @@ function Projects() {
   )
 }
 
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({ product, index = 0 }: { product: Product; index?: number }) {
   return (
-    <Link to={`/shop/${product.slug}`} className="product-card">
+    <Link
+      to={`/shop/${product.slug}`}
+      className="product-card reveal"
+      style={{ animationDelay: `${index * 65}ms` }}
+    >
       <div
         className="product-cover"
         style={product.cover_url ? { backgroundImage: `url(${product.cover_url})` } : undefined}
       >
-        <Package size={42} strokeWidth={1} />
+        {!product.cover_url && <Package size={42} strokeWidth={1} />}
         <span className="product-badge">数字商品</span>
       </div>
       <div className="product-info">
@@ -575,13 +654,38 @@ function ProductCard({ product }: { product: Product }) {
 
 function Shop() {
   const remote = useRemote<Page<Product>>('/products?page_size=50')
+  const [sort, setSort] = useState('newest')
+  const visibleProducts = [...(remote.data?.items || [])].sort((a, b) =>
+    sort === 'low'
+      ? a.price_cents - b.price_cents
+      : sort === 'high'
+        ? b.price_cents - a.price_cents
+        : 0,
+  )
   return (
     <div className="container page-layout">
       <PageIntro eyebrow="小商店" title="数字作品" description="整理好的资源和小工具。" />
-      <Status loading={remote.loading} error={remote.error} empty={!remote.data?.items.length}>
+      {!!remote.data?.items.length && (
+        <div className="catalog-toolbar shop-toolbar">
+          <span className="catalog-count">共 {remote.data.total} 件作品</span>
+          <label htmlFor="shop-sort">排序</label>
+          <select id="shop-sort" value={sort} onChange={(event) => setSort(event.target.value)}>
+            <option value="newest">最新上架</option>
+            <option value="low">价格从低到高</option>
+            <option value="high">价格从高到低</option>
+          </select>
+        </div>
+      )}
+      <Status
+        loading={remote.loading}
+        error={remote.error}
+        empty={!remote.data?.items.length}
+        emptyTitle="小店正在准备"
+        emptyText="工具和资源整理好后会摆上货架。"
+      >
         <div className="product-grid">
-          {remote.data?.items.map((product) => (
-            <ProductCard key={product.id} product={product} />
+          {visibleProducts.map((product, index) => (
+            <ProductCard key={product.id} product={product} index={index} />
           ))}
         </div>
       </Status>
@@ -723,6 +827,8 @@ type Message = {
 }
 function Assistant() {
   const [open, setOpen] = useState(false)
+  const [walking, setWalking] = useState(false)
+  const [greeting, setGreeting] = useState(false)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null)
@@ -739,6 +845,38 @@ function Assistant() {
       if ('speechSynthesis' in window) window.speechSynthesis.cancel()
     }
   }, [])
+  useEffect(() => {
+    const preload = window.setTimeout(() => {
+      ;['/images/blog-keeper-walk.png', '/images/blog-keeper-wave.png'].forEach((src) => {
+        const image = new Image()
+        image.src = src
+      })
+    }, 1200)
+    return () => window.clearTimeout(preload)
+  }, [])
+  useEffect(() => {
+    if (
+      open ||
+      busy ||
+      speakingIndex !== null ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      setWalking(false)
+      return
+    }
+    if (greeting) return
+    const start = window.setTimeout(() => setWalking(true), 5000)
+    const repeat = window.setInterval(() => setWalking(true), 18000)
+    return () => {
+      window.clearTimeout(start)
+      window.clearInterval(repeat)
+    }
+  }, [open, busy, speakingIndex, greeting])
+  useEffect(() => {
+    if (!walking || greeting) return
+    const stop = window.setTimeout(() => setWalking(false), 6200)
+    return () => window.clearTimeout(stop)
+  }, [walking, greeting])
   function readAloud(index: number, content: string) {
     if (!('speechSynthesis' in window)) return
     if (speakingIndex === index) {
@@ -785,10 +923,14 @@ function Assistant() {
     }
   }
   return (
-    <div className="assistant-root">
+    <div className={`assistant-root${walking ? ' strolling' : ''}${greeting ? ' greeting' : ''}`}>
       <button
         type="button"
-        className={`assistant-trigger${open ? ' active' : ''}${busy ? ' waiting' : ''}${speakingIndex !== null ? ' speaking' : ''}`}
+        className={`assistant-trigger${open ? ' active' : ''}${busy ? ' waiting' : ''}${speakingIndex !== null ? ' speaking' : ''}${greeting ? ' greeting' : ''}${walking ? ' walking' : ''}`}
+        onMouseEnter={() => setGreeting(true)}
+        onMouseLeave={() => setGreeting(false)}
+        onFocus={() => setGreeting(true)}
+        onBlur={() => setGreeting(false)}
         onClick={() => {
           if (open && 'speechSynthesis' in window) window.speechSynthesis.cancel()
           setSpeakingIndex(null)
@@ -797,9 +939,27 @@ function Assistant() {
         aria-label={open ? '关闭数字助手' : '打开数字助手'}
         aria-expanded={open}
       >
-        <img className="assistant-character" src="/images/blog-keeper.png" alt="" />
+        <img
+          className="assistant-character"
+          src={
+            greeting
+              ? '/images/blog-keeper-wave.png'
+              : walking
+                ? '/images/blog-keeper-walk.png'
+                : '/images/blog-keeper.png'
+          }
+          alt=""
+        />
         <span className="assistant-trigger-label">
-          {busy ? '正在找文章…' : speakingIndex !== null ? '正在说话…' : '来聊聊？'}
+          {busy
+            ? '正在找文章…'
+            : speakingIndex !== null
+              ? '正在说话…'
+              : greeting
+                ? '你好呀！'
+                : walking
+                  ? '到处看看…'
+                  : '来聊聊？'}
         </span>
         {open && (
           <span className="assistant-close-mark">
