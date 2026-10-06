@@ -241,14 +241,21 @@ func stop(ctx context.Context, db *gorm.DB, item project.Project, command comman
 	if err := stopDocker(ctx, names(item.ID), command); err != nil {
 		return err
 	}
-	previewURL := ""
-	if item.BundlePrefix != "" {
-		previewURL = fmt.Sprintf("/api/v1/project-previews/%s/index.html", item.Slug)
-	}
+	previewURL := previewURLAfterStop(item)
 	return db.Model(&item).Updates(map[string]any{
 		"runtime_status": "stopped", "runtime_frontend_port": 0, "runtime_backend_port": 0,
 		"preview_url": previewURL, "backend_url": "",
 	}).Error
+}
+
+func previewURLAfterStop(item project.Project) string {
+	if item.BundlePrefix != "" {
+		return fmt.Sprintf("/api/v1/project-previews/%s/index.html", item.Slug)
+	}
+	if strings.HasPrefix(item.PreviewURL, "/api/v1/project-runtimes/") {
+		return ""
+	}
+	return item.PreviewURL
 }
 
 func stopDocker(ctx context.Context, n runtimeNames, command commandRunner) error {

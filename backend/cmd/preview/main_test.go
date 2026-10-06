@@ -76,6 +76,18 @@ func TestStopDockerReportsDaemonFailure(t *testing.T) {
 	}
 }
 
+func TestStopPreservesExternalPreview(t *testing.T) {
+	if got := previewURLAfterStop(project.Project{PreviewURL: "https://example.com/demo"}); got != "https://example.com/demo" {
+		t.Fatalf("external preview lost: %q", got)
+	}
+	if got := previewURLAfterStop(project.Project{Slug: "demo", BundlePrefix: "projects/1/revision", PreviewURL: "/api/v1/project-runtimes/demo/"}); got != "/api/v1/project-previews/demo/index.html" {
+		t.Fatalf("static preview not restored: %q", got)
+	}
+	if got := previewURLAfterStop(project.Project{PreviewURL: "/api/v1/project-runtimes/demo/"}); got != "" {
+		t.Fatalf("runtime preview still shown after stop: %q", got)
+	}
+}
+
 func TestFailedDeployCleansUpAfterOriginalContextExpires(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

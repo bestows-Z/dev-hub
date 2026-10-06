@@ -68,10 +68,35 @@ type projectAdminRow struct {
 	RuntimeJobError  string `json:"runtime_job_error"`
 }
 
-func (h *Handler) projectHasActiveRuntimeJob(c *gin.Context, id uint64) (bool, error) {
+func projectHasActiveRuntimeJob(tx *gorm.DB, id uint64) (bool, error) {
 	var count int64
-	err := h.db.WithContext(c.Request.Context()).Model(&runtimejobs.Job{}).Where("project_id = ? AND status IN ?", id, []string{"queued", "running"}).Count(&count).Error
+	err := tx.Model(&runtimejobs.Job{}).Where("project_id = ? AND status IN ?", id, []string{"queued", "running"}).Count(&count).Error
 	return count > 0, err
+}
+
+func ensureRuntimeIdle(tx *gorm.DB, id uint64) error {
+	active, err := projectHasActiveRuntimeJob(tx, id)
+	if err != nil {
+		return err
+	}
+	if active {
+		return errRuntimeJobActive
+	}
+	return nil
+}
+
+var errRuntimeJobActive = errors.New("runtime action in progress")
+var errRuntimeRunning = errors.New("running project must be stopped first")
+
+func (h *Handler) runtimeMutationFailure(c *gin.Context, operation string, err error) {
+	switch {
+	case errors.Is(err, errRuntimeJobActive):
+		response.Fail(c, 40908, "wait for the runtime action to finish")
+	case errors.Is(err, errRuntimeRunning):
+		response.Fail(c, 40906, "stop the project runtime before changing its slug or deleting it")
+	default:
+		h.failure(c, operation, err)
+	}
 }
 
 func (h *Handler) QueueProjectRuntime(c *gin.Context) {
@@ -100,12 +125,21 @@ func (h *Handler) QueueProjectRuntime(c *gin.Context) {
 		if input.Action == "start" && (item.RuntimeBundleKey == "" || item.RuntimeStatus == "running") {
 			return errRuntimeNotReady
 		}
+		if input.Action == "stop" && item.RuntimeStatus != "running" {
+			var last runtimejobs.Job
+			if err := tx.Where("project_id = ?", id).Order("id DESC").First(&last).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+			if last.Status != "failed" {
+				return errRuntimeNotReady
+			}
+		}
 		job = runtimejobs.Job{ProjectID: id, Action: input.Action, Status: "queued", RequestedBy: u.ID}
 		return tx.Create(&job).Error
 	})
 	var pgErr *pgconn.PgError
 	if errors.Is(err, errRuntimeNotReady) {
-		response.Fail(c, 40907, "upload a runtime ZIP before starting, or check current runtime state")
+		response.Fail(c, 40907, "check the current runtime state and uploaded ZIP")
 		return
 	}
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -163,30 +197,35 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 	if !h.requireCover(c, input.CoverURL, item.CoverURL) {
 		return
 	}
-	if active, err := h.projectHasActiveRuntimeJob(c, id); err != nil {
-		h.failure(c, "check runtime job", err)
-		return
-	} else if active {
-		response.Fail(c, 40908, "wait for the runtime action to finish")
-		return
-	}
 	status := input.Status
 	if status == "" {
 		status = "draft"
 	}
-	item.Slug, item.Title, item.Description, item.CoverURL = input.Slug, clean(input.Title), clean(input.Description), input.CoverURL
-	item.Tags, item.PreviewURL, item.SourceURL, item.Status = input.Tags, input.PreviewURL, input.SourceURL, status
-	if item.RuntimeStatus == "running" {
-		item.PreviewURL = fmt.Sprintf("/api/v1/project-runtimes/%s/", item.Slug)
-		item.BackendURL = fmt.Sprintf("/api/v1/project-runtimes/%s/backend/", item.Slug)
-	} else if item.BundlePrefix != "" {
-		item.PreviewURL = fmt.Sprintf("/api/v1/project-previews/%s/index.html", item.Slug)
-	}
-	if item.Tags == nil {
-		item.Tags = []string{}
-	}
-	if err := h.db.WithContext(c.Request.Context()).Save(&item).Error; err != nil {
-		h.failure(c, "update project", err)
+	err := h.db.WithContext(c.Request.Context()).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&item, id).Error; err != nil {
+			return err
+		}
+		if err := ensureRuntimeIdle(tx, id); err != nil {
+			return err
+		}
+		if item.RuntimeStatus == "running" && item.Slug != input.Slug {
+			return errRuntimeRunning
+		}
+		item.Slug, item.Title, item.Description, item.CoverURL = input.Slug, clean(input.Title), clean(input.Description), input.CoverURL
+		item.Tags, item.PreviewURL, item.SourceURL, item.Status = input.Tags, input.PreviewURL, input.SourceURL, status
+		if item.RuntimeStatus == "running" {
+			item.PreviewURL = fmt.Sprintf("/api/v1/project-runtimes/%s/", item.Slug)
+			item.BackendURL = fmt.Sprintf("/api/v1/project-runtimes/%s/backend/", item.Slug)
+		} else if item.BundlePrefix != "" {
+			item.PreviewURL = fmt.Sprintf("/api/v1/project-previews/%s/index.html", item.Slug)
+		}
+		if item.Tags == nil {
+			item.Tags = []string{}
+		}
+		return tx.Save(&item).Error
+	})
+	if err != nil {
+		h.runtimeMutationFailure(c, "update project", err)
 		return
 	}
 	response.Success(c, item)
@@ -198,28 +237,20 @@ func (h *Handler) DeleteProject(c *gin.Context) {
 		return
 	}
 	var item project.Project
-	if err := h.db.WithContext(c.Request.Context()).First(&item, id).Error; err != nil {
-		h.failure(c, "find project", err)
-		return
-	}
-	if active, err := h.projectHasActiveRuntimeJob(c, id); err != nil {
-		h.failure(c, "check runtime job", err)
-		return
-	} else if active {
-		response.Fail(c, 40908, "wait for the runtime action to finish")
-		return
-	}
-	if item.RuntimeStatus == "running" {
-		response.Fail(c, 40906, "stop the project runtime before deleting it")
-		return
-	}
-	result := h.db.WithContext(c.Request.Context()).Delete(&item)
-	if result.Error != nil {
-		h.failure(c, "delete project", result.Error)
-		return
-	}
-	if result.RowsAffected == 0 {
-		response.Fail(c, 40400, "record not found")
+	err := h.db.WithContext(c.Request.Context()).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&item, id).Error; err != nil {
+			return err
+		}
+		if err := ensureRuntimeIdle(tx, id); err != nil {
+			return err
+		}
+		if item.RuntimeStatus == "running" {
+			return errRuntimeRunning
+		}
+		return tx.Delete(&item).Error
+	})
+	if err != nil {
+		h.runtimeMutationFailure(c, "delete project", err)
 		return
 	}
 	if item.BundlePrefix != "" {
@@ -243,13 +274,6 @@ func (h *Handler) UploadRuntimeBundle(c *gin.Context) {
 	var item project.Project
 	if err := h.db.WithContext(c.Request.Context()).First(&item, id).Error; err != nil {
 		h.failure(c, "find project for runtime upload", err)
-		return
-	}
-	if active, err := h.projectHasActiveRuntimeJob(c, id); err != nil {
-		h.failure(c, "check runtime job", err)
-		return
-	} else if active {
-		response.Fail(c, 40908, "wait for the runtime action to finish")
 		return
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, project.MaxRuntimeBundleBytes+(1<<20))
@@ -287,10 +311,20 @@ func (h *Handler) UploadRuntimeBundle(c *gin.Context) {
 		h.failure(c, "upload runtime bundle", err)
 		return
 	}
-	previous := item.RuntimeBundleKey
-	if err := h.db.WithContext(c.Request.Context()).Model(&item).Updates(map[string]any{"runtime_bundle_key": key, "runtime_bundle_uploaded": true}).Error; err != nil {
+	previous := ""
+	err = h.db.WithContext(c.Request.Context()).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&item, id).Error; err != nil {
+			return err
+		}
+		if err := ensureRuntimeIdle(tx, id); err != nil {
+			return err
+		}
+		previous = item.RuntimeBundleKey
+		return tx.Model(&item).Updates(map[string]any{"runtime_bundle_key": key, "runtime_bundle_uploaded": true}).Error
+	})
+	if err != nil {
 		_ = h.store.Remove(c.Request.Context(), key)
-		h.failure(c, "save runtime bundle", err)
+		h.runtimeMutationFailure(c, "save runtime bundle", err)
 		return
 	}
 	if previous != "" {
@@ -343,7 +377,6 @@ func (h *Handler) UploadProjectBundle(c *gin.Context) {
 		return
 	}
 	prefix := fmt.Sprintf("projects/%d/%s", item.ID, hex.EncodeToString(random[:]))
-	previousPrefix := item.BundlePrefix
 	for _, file := range files {
 		if err := h.store.Put(c.Request.Context(), prefix+"/"+file.Path, file.Body, file.ContentType); err != nil {
 			_ = h.store.RemovePrefix(c.Request.Context(), prefix)
@@ -351,14 +384,26 @@ func (h *Handler) UploadProjectBundle(c *gin.Context) {
 			return
 		}
 	}
-	previewURL := fmt.Sprintf("/api/v1/project-previews/%s/index.html", item.Slug)
-	updates := map[string]any{"bundle_prefix": prefix}
-	if item.RuntimeStatus != "running" {
-		updates["preview_url"] = previewURL
-	}
-	if err := h.db.WithContext(c.Request.Context()).Model(&item).Updates(updates).Error; err != nil {
+	previousPrefix := ""
+	previewURL := ""
+	err = h.db.WithContext(c.Request.Context()).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&item, id).Error; err != nil {
+			return err
+		}
+		if err := ensureRuntimeIdle(tx, id); err != nil {
+			return err
+		}
+		previousPrefix = item.BundlePrefix
+		previewURL = fmt.Sprintf("/api/v1/project-previews/%s/index.html", item.Slug)
+		updates := map[string]any{"bundle_prefix": prefix}
+		if item.RuntimeStatus != "running" {
+			updates["preview_url"] = previewURL
+		}
+		return tx.Model(&item).Updates(updates).Error
+	})
+	if err != nil {
 		_ = h.store.RemovePrefix(c.Request.Context(), prefix)
-		h.failure(c, "save project bundle", err)
+		h.runtimeMutationFailure(c, "save project bundle", err)
 		return
 	}
 	if previousPrefix != "" {

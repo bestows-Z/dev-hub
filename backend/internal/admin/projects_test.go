@@ -60,15 +60,29 @@ func TestQueueRuntimeJobAgainstPostgres(t *testing.T) {
 		router.Use(func(c *gin.Context) { c.Set("currentUser", &u); c.Next() })
 		handler := NewHandler(tx, nil, zap.NewNop())
 		router.POST("/projects/:id/runtime-jobs", handler.QueueProjectRuntime)
+		router.PUT("/projects/:id", handler.UpdateProject)
+		router.DELETE("/projects/:id", handler.DeleteProject)
 		router.GET("/projects", handler.ListProjects)
-		request := func() *httptest.ResponseRecorder {
-			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/projects/%d/runtime-jobs", item.ID), bytes.NewBufferString(`{"action":"start"}`))
+		request := func(action string) *httptest.ResponseRecorder {
+			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/projects/%d/runtime-jobs", item.ID), bytes.NewBufferString(fmt.Sprintf(`{"action":%q}`, action)))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 			return w
 		}
-		if got := request(); got.Code != http.StatusOK {
+		assertCode := func(got *httptest.ResponseRecorder, want int) error {
+			var payload struct {
+				Code int `json:"code"`
+			}
+			if err := json.Unmarshal(got.Body.Bytes(), &payload); err != nil || payload.Code != want {
+				return fmt.Errorf("response code want %d: %s error=%v", want, got.Body.String(), err)
+			}
+			return nil
+		}
+		if err := assertCode(request("stop"), 40907); err != nil {
+			return fmt.Errorf("stop on stopped project: %w", err)
+		}
+		if got := request("start"); got.Code != http.StatusOK {
 			return fmt.Errorf("queue returned %d: %s", got.Code, got.Body.String())
 		}
 		var job runtimejobs.Job
@@ -83,14 +97,24 @@ func TestQueueRuntimeJobAgainstPostgres(t *testing.T) {
 		if list.Code != http.StatusOK || !bytes.Contains(list.Body.Bytes(), []byte(`"runtime_job_status":"queued"`)) {
 			return fmt.Errorf("project row missing runtime state: %s", list.Body.String())
 		}
-		if got := request(); got.Code != http.StatusOK {
+		for _, method := range []string{http.MethodPut, http.MethodDelete} {
+			body := []byte(nil)
+			if method == http.MethodPut {
+				body = []byte(fmt.Sprintf(`{"slug":%q,"title":"Edited"}`, item.Slug))
+			}
+			req := httptest.NewRequest(method, fmt.Sprintf("/projects/%d", item.ID), bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			got := httptest.NewRecorder()
+			router.ServeHTTP(got, req)
+			if err := assertCode(got, 40908); err != nil {
+				return fmt.Errorf("%s while queued: %w", method, err)
+			}
+		}
+		if got := request("start"); got.Code != http.StatusOK {
 			return fmt.Errorf("duplicate queue returned %d: %s", got.Code, got.Body.String())
 		} else {
-			var payload struct {
-				Code int `json:"code"`
-			}
-			if err := json.Unmarshal(got.Body.Bytes(), &payload); err != nil || payload.Code != 40908 {
-				return fmt.Errorf("duplicate queue response: %s error=%v", got.Body.String(), err)
+			if err := assertCode(got, 40908); err != nil {
+				return fmt.Errorf("duplicate queue: %w", err)
 			}
 		}
 		return rollback

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -51,9 +52,12 @@ func main() {
 		if action == "stop" {
 			command = "stop"
 		}
-		output, err := exec.CommandContext(ctx, bin, command, "--slug", slug).CombinedOutput()
+		output := &tailBuffer{limit: 64 << 10}
+		cmd := exec.CommandContext(ctx, bin, command, "--slug", slug)
+		cmd.Stdout, cmd.Stderr = output, output
+		err := cmd.Run()
 		if err != nil {
-			return fmt.Errorf("%s %s: %w: %s", command, slug, err, truncate(string(output), 1000))
+			return fmt.Errorf("%s %s: %w: %s", command, slug, err, truncate(output.String(), 1000))
 		}
 		return nil
 	}
@@ -73,6 +77,36 @@ func main() {
 		case <-ticker.C:
 		}
 	}
+}
+
+// tailBuffer keeps only the end of potentially unbounded Docker build output.
+// The exec package may write stdout and stderr concurrently.
+type tailBuffer struct {
+	mu    sync.Mutex
+	data  []byte
+	limit int
+}
+
+func (b *tailBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	n := len(p)
+	if n >= b.limit {
+		b.data = append(b.data[:0], p[n-b.limit:]...)
+		return n, nil
+	}
+	if overflow := len(b.data) + n - b.limit; overflow > 0 {
+		copy(b.data, b.data[overflow:])
+		b.data = b.data[:len(b.data)-overflow]
+	}
+	b.data = append(b.data, p...)
+	return n, nil
+}
+
+func (b *tailBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return string(b.data)
 }
 
 func failExpiredJobs(db *gorm.DB) error {

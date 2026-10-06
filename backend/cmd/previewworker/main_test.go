@@ -64,3 +64,15 @@ func TestWorkerClaimsQueuedJobIntegration(t *testing.T) {
 		t.Fatalf("worker did not complete job: %+v", job)
 	}
 }
+
+func TestTailBufferBoundsOutput(t *testing.T) {
+	b := &tailBuffer{limit: 8}
+	for _, chunk := range []string{"abcd", "efgh", "ijklmnopq", "rs"} {
+		if n, err := b.Write([]byte(chunk)); err != nil || n != len(chunk) {
+			t.Fatalf("write %q: %d, %v", chunk, n, err)
+		}
+	}
+	if got := b.String(); got != "lmnopqrs" {
+		t.Fatalf("unexpected tail %q", got)
+	}
+}
