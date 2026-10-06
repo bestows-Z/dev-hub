@@ -12,6 +12,7 @@ import { Link, NavLink, Route, Routes, useLocation, useParams } from 'react-rout
 import { Account, Login, Register } from './Auth'
 import { Comments, LinkApplicationForm } from './Engagement'
 import { authChanged, readUser } from './session'
+import SiteEffects from './SiteEffects'
 
 import {
   ArrowDown,
@@ -185,6 +186,7 @@ function Layout({ children }: { children: ReactNode }) {
         </div>
       </footer>
       {!['/login', '/register', '/account'].includes(location.pathname) && <Assistant />}
+      <SiteEffects />
     </div>
   )
 }
