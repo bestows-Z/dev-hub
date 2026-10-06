@@ -19,6 +19,15 @@ export interface FriendLink {
   avatar_url: string
   description: string
 }
+export interface GalleryItem {
+  id: number
+  title: string
+  description: string
+  location: string
+  image_url: string
+  taken_at: string | null
+  created_at: string
+}
 export interface Product {
   id: number
   slug: string

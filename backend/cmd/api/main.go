@@ -17,6 +17,7 @@ import (
 	"github.com/bestows-Z/dev-hub/backend/internal/config"
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
 	"github.com/bestows-Z/dev-hub/backend/internal/engagement"
+	"github.com/bestows-Z/dev-hub/backend/internal/gallery"
 	httprouter "github.com/bestows-Z/dev-hub/backend/internal/http/router"
 	pg "github.com/bestows-Z/dev-hub/backend/internal/platform/postgres"
 	"github.com/bestows-Z/dev-hub/backend/internal/project"
@@ -99,6 +100,7 @@ func main() {
 	bucketCancel()
 	authHandler := auth.NewHandler(userRepository, auth.NewTokens(cfg.Auth.JWTSecret), postgresClient.DB, objectStore, logger)
 	previewHandler := project.NewPreviewHandler(postgresClient.DB, objectStore, logger)
+	galleryHandler := gallery.NewHandler(postgresClient.DB, objectStore, logger)
 	runtimeHandler := project.NewRuntimeHandler(postgresClient.DB, logger)
 	adminHandler := admin.NewHandler(postgresClient.DB, objectStore, logger)
 	adminHandler.SetArticleIndex(searchClient)
@@ -134,7 +136,7 @@ func main() {
 		}
 	}
 	analyticsHandler := analytics.NewHandler(analyticsStore, logger)
-	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler, previewHandler, runtimeHandler, adminHandler, assistantHandler, engagementHandler, analyticsHandler, analyticsBroker)
+	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler, previewHandler, runtimeHandler, galleryHandler, adminHandler, assistantHandler, engagementHandler, analyticsHandler, analyticsBroker)
 	address := fmt.Sprintf(
 		"%s:%d",
 		cfg.HTTP.Host,

@@ -12,6 +12,7 @@ import (
 	"github.com/bestows-Z/dev-hub/backend/internal/auth"
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
 	"github.com/bestows-Z/dev-hub/backend/internal/engagement"
+	"github.com/bestows-Z/dev-hub/backend/internal/gallery"
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
 	"github.com/bestows-Z/dev-hub/backend/internal/project"
 	"github.com/bestows-Z/dev-hub/backend/internal/store"
@@ -19,7 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler, previewHandler *project.PreviewHandler, runtimeHandler *project.RuntimeHandler, adminHandler *admin.Handler, assistantHandler *assistant.Handler, engagementHandler *engagement.Handler, analyticsHandler *analytics.Handler, analyticsBroker *analytics.Broker) *gin.Engine {
+func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler, previewHandler *project.PreviewHandler, runtimeHandler *project.RuntimeHandler, galleryHandler *gallery.Handler, adminHandler *admin.Handler, assistantHandler *assistant.Handler, engagementHandler *engagement.Handler, analyticsHandler *analytics.Handler, analyticsBroker *analytics.Broker) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
@@ -70,6 +71,8 @@ func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, co
 	v1.GET("/articles/:slug/comments", engagementHandler.ListComments)
 	v1.POST("/articles/:slug/comments", authHandler.RequireUser(), engagementHandler.CreateComment)
 	v1.GET("/links", contentHandler.ListLinks)
+	v1.GET("/gallery", galleryHandler.List)
+	v1.GET("/gallery/:id/image", galleryHandler.Image)
 	v1.POST("/link-applications", authHandler.RequireUser(), engagementHandler.ApplyLink)
 	v1.GET("/products", storeHandler.ListProducts)
 	v1.GET("/products/:slug", storeHandler.GetProduct)
@@ -80,6 +83,11 @@ func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, co
 	v1.POST("/assistant/chat", assistantHandler.Chat)
 	adminGroup := v1.Group("/admin", authHandler.RequireUser(), authHandler.RequireAdmin())
 	adminGroup.GET("/articles", adminHandler.ListArticles)
+	adminGroup.GET("/gallery", adminHandler.ListGallery)
+	adminGroup.POST("/gallery", adminHandler.CreateGallery)
+	adminGroup.PUT("/gallery/:id", adminHandler.UpdateGallery)
+	adminGroup.POST("/gallery/:id/image", adminHandler.UploadGalleryImage)
+	adminGroup.DELETE("/gallery/:id", adminHandler.DeleteGallery)
 	adminGroup.POST("/articles", adminHandler.CreateArticle)
 	adminGroup.PUT("/articles/:id", adminHandler.UpdateArticle)
 	adminGroup.DELETE("/articles/:id", adminHandler.DeleteArticle)

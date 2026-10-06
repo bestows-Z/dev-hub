@@ -10,6 +10,7 @@ import {
   FileText,
   FolderKanban,
   Inbox,
+  Images,
   LayoutDashboard,
   Link2,
   LogOut,
@@ -32,6 +33,7 @@ type Kind =
   | 'overview'
   | 'articles'
   | 'projects'
+  | 'gallery'
   | 'products'
   | 'links'
   | 'orders'
@@ -39,7 +41,7 @@ type Kind =
   | 'applications'
 type EditableKind = Exclude<Kind, 'overview' | 'orders' | 'comments' | 'applications'>
 function isEditableKind(kind: Kind): kind is EditableKind {
-  return kind === 'articles' || kind === 'projects' || kind === 'products' || kind === 'links'
+  return kind === 'articles' || kind === 'projects' || kind === 'gallery' || kind === 'products' || kind === 'links'
 }
 type Item = Record<string, unknown> & { id: number }
 type AnalyticsSummary = {
@@ -63,6 +65,7 @@ const tabs: {
   { kind: 'overview', label: '总览', icon: LayoutDashboard, group: 'workspace' },
   { kind: 'articles', label: '文章管理', icon: FileText, group: 'content' },
   { kind: 'projects', label: '项目管理', icon: FolderKanban, group: 'content' },
+  { kind: 'gallery', label: '相册管理', icon: Images, group: 'content' },
   { kind: 'products', label: '商品管理', icon: ShoppingBag, group: 'content' },
   { kind: 'links', label: '友链管理', icon: Link2, group: 'content' },
   { kind: 'orders', label: '订单管理', icon: BarChart3, group: 'content' },
@@ -73,6 +76,7 @@ type ManagedKind = Exclude<Kind, 'overview'>
 const managedKinds: ManagedKind[] = [
   'articles',
   'projects',
+  'gallery',
   'products',
   'links',
   'orders',
@@ -102,6 +106,13 @@ const fields: Record<EditableKind, Field[]> = {
     { key: 'tags', label: '技术标签（用逗号分隔）' },
     { key: 'preview_url', label: '预览地址', type: 'url' },
     { key: 'source_url', label: '源码地址', type: 'url' },
+    { key: 'status', label: '状态' },
+  ],
+  gallery: [
+    { key: 'title', label: '照片标题' },
+    { key: 'description', label: '照片说明', type: 'textarea' },
+    { key: 'location', label: '拍摄地点' },
+    { key: 'taken_at', label: '拍摄日期' },
     { key: 'status', label: '状态' },
   ],
   products: [
@@ -143,6 +154,7 @@ const blank: Record<EditableKind, Record<string, unknown>> = {
     source_url: '',
     status: 'draft',
   },
+  gallery: { title: '', description: '', location: '', taken_at: '', status: 'draft' },
   products: {
     slug: '',
     name: '',
@@ -159,6 +171,7 @@ function normalize(kind: EditableKind, item: Item): Record<string, unknown> {
   const result: Record<string, unknown> = { ...item }
   if (kind === 'articles' || kind === 'projects')
     result.tags = Array.isArray(item.tags) ? item.tags.join(', ') : ''
+  if (kind === 'gallery') result.taken_at = item.taken_at ? String(item.taken_at).slice(0, 10) : ''
   return result
 }
 function toPayload(kind: EditableKind, form: Record<string, unknown>): Record<string, unknown> {
@@ -192,6 +205,7 @@ export default function Admin() {
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null)
   const [previewMarkdown, setPreviewMarkdown] = useState(false)
   const [form, setForm] = useState<Record<string, unknown> | null>(null)
+  const [galleryFile, setGalleryFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [authorized, setAuthorized] = useState(false)
@@ -321,6 +335,7 @@ export default function Admin() {
     setToken('')
     setItems([])
     setForm(null)
+    setGalleryFile(null)
     setAuthorized(false)
   }
   async function save(event: FormEvent) {
@@ -330,10 +345,28 @@ export default function Admin() {
     setMessage('')
     try {
       const id = form.id as number | undefined
-      await request(`/admin/${kind}${id ? `/${id}` : ''}`, {
-        method: id ? 'PUT' : 'POST',
-        body: JSON.stringify(toPayload(kind, form)),
-      })
+      if (kind === 'gallery') {
+        if (!id && !galleryFile) throw new Error('先选择一张照片')
+        if (galleryFile && galleryFile.size > 10 * 1024 * 1024) throw new Error('照片不能超过 10 MiB')
+        const payload = toPayload(kind, form)
+        let savedID = id
+        if (!savedID) {
+          const created = await request<Item>('/admin/gallery', { method: 'POST', body: JSON.stringify({ ...payload, status: 'draft' }) })
+          savedID = created.id
+        }
+        if (galleryFile) {
+          const body = new FormData()
+          body.append('file', galleryFile)
+          await request(`/admin/gallery/${savedID}/image`, { method: 'POST', body })
+        }
+        await request(`/admin/gallery/${savedID}`, { method: 'PUT', body: JSON.stringify(payload) })
+        setGalleryFile(null)
+      } else {
+        await request(`/admin/${kind}${id ? `/${id}` : ''}`, {
+          method: id ? 'PUT' : 'POST',
+          body: JSON.stringify(toPayload(kind, form)),
+        })
+      }
       setMessage(id ? '已保存修改' : '已创建')
       setForm(null)
       await refreshLatest.current()
@@ -443,6 +476,7 @@ export default function Admin() {
     setItems([])
     setTotal(0)
     setForm(null)
+    setGalleryFile(null)
     setPreviewMarkdown(false)
     setMessage('')
   }
@@ -766,6 +800,7 @@ export default function Admin() {
                     className="admin-add"
                     onClick={() => {
                       setForm({ ...blank[kind] })
+                      setGalleryFile(null)
                       setPreviewMarkdown(false)
                     }}
                   >
@@ -805,6 +840,7 @@ export default function Admin() {
                 <a href="/downloads/project-runtime-template.zip" download>下载完整项目模板</a>
               </div>
             )}
+            {kind === 'gallery' && <div className="admin-project-help"><span>照片先上传为草稿，保存时可直接选择公开。相册目前保持空白，等你自己上传照片。</span></div>}
             {form && isEditableKind(kind) && (
               <form className="admin-editor" onSubmit={save}>
                 <div className="admin-editor-head">
@@ -812,7 +848,7 @@ export default function Admin() {
                     {form.id ? '编辑' : '新建'}
                     {tabs.find((tab) => tab.kind === kind)?.label}
                   </h2>
-                  <button type="button" onClick={() => setForm(null)}>
+                  <button type="button" onClick={() => { setForm(null); setGalleryFile(null) }}>
                     取消
                   </button>
                 </div>
@@ -880,6 +916,8 @@ export default function Admin() {
                             value={String(form[field.key] ?? '')}
                             onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
                           />
+                        ) : field.key === 'taken_at' ? (
+                          <input type="date" value={String(form.taken_at || '')} onChange={(e) => setForm({ ...form, taken_at: e.target.value })} />
                         ) : (
                           <input
                             type={field.type || 'text'}
@@ -891,6 +929,13 @@ export default function Admin() {
                     ))}
                   </div>
                 )}
+                {kind === 'gallery' && <div className="admin-gallery-upload">
+                  {Boolean(form.image_url) && form.status === 'published' && <img src={String(form.image_url)} alt={String(form.title || '当前照片')} />}
+                  <label><UploadCloud size={18} /> {galleryFile ? galleryFile.name : form.id ? '更换照片（可选）' : '选择照片'}
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => setGalleryFile(event.target.files?.[0] || null)} />
+                  </label>
+                  <small>JPEG、PNG、WebP、GIF，最大 10 MiB</small>
+                </div>}
                 <button className="admin-save" type="submit" disabled={busy}>
                   <Check size={17} /> {busy ? '保存中…' : '保存'}
                 </button>
@@ -913,10 +958,11 @@ export default function Admin() {
                 {visibleItems.map((item) => (
                   <tr key={item.id}>
                     <td className="admin-table-title" data-label="内容">
+                      {kind === 'gallery' && item.status === 'published' && Boolean(item.image_url) && <img className="admin-gallery-thumb" src={String(item.image_url)} alt="" />}
                       <strong>{String(item.title || item.name || item.article_title || item.username || item.order_no || `#${item.id}`)}</strong>
                       <small>{String(kind === 'comments' ? item.body || '' : kind === 'orders' ? formatPrice(Number(item.total_cents || 0)) : item.description || item.excerpt || '')}</small>
                     </td>
-                    <td data-label="标识 / 联系" className="admin-table-identifier">{String(item.slug || item.url || item.email || item.username || `#${item.id}`)}</td>
+                    <td data-label="标识 / 联系" className="admin-table-identifier">{String(item.slug || item.location || item.url || item.email || item.username || `#${item.id}`)}</td>
                     <td data-label="状态">
                       <span className={`admin-status ${item.status === 'published' || item.status === 'approved' || item.enabled === true ? 'is-positive' : ''}`}>
                         {kind === 'links' ? (item.enabled ? '公开' : '隐藏') : ({ published: '公开', draft: '草稿', pending: '待审核', approved: '已通过', rejected: '已驳回', pending_payment: '待付款', paid: '已付款', delivered: '已交付', cancelled: '已取消' } as Record<string, string>)[String(item.status)] || String(item.status || '—')}
@@ -1011,6 +1057,7 @@ export default function Admin() {
                             type="button"
                             onClick={() => {
                               setForm(normalize(kind, item))
+                              setGalleryFile(null)
                               setPreviewMarkdown(false)
                             }}
                             aria-label={`编辑 ${String(item.title || item.name)}`}

@@ -48,6 +48,7 @@ import {
 
 const ArticleReading = lazy(() => import('./ArticleReading'))
 const Admin = lazy(() => import('./Admin'))
+const Gallery = lazy(() => import('./Gallery'))
 type Remote<T> = { data: T | null; loading: boolean; error: string }
 const contactEmail = import.meta.env.VITE_CONTACT_EMAIL as string | undefined
 const contactHref = contactEmail ? `mailto:${contactEmail}` : 'https://github.com/bestows-Z'
@@ -118,6 +119,7 @@ function Layout({ children }: { children: ReactNode }) {
     ['/articles', '文章'],
     ['/projects', '项目'],
     ['/shop', '商店'],
+    ['/gallery', '相册'],
     ['/links', '友链'],
     ['/admin', '管理'],
   ]
@@ -180,6 +182,7 @@ function Layout({ children }: { children: ReactNode }) {
             <Link to="/articles">文章</Link>
             <Link to="/projects">项目</Link>
             <Link to="/shop">商店</Link>
+            <Link to="/gallery">相册</Link>
             <Link to="/links">友链</Link>
           </div>
           <span className="copyright">© {new Date().getFullYear()} DevHub</span>
@@ -1369,6 +1372,7 @@ export default function App() {
         <Route path="/records" element={<Articles />} />
         <Route path="/articles/:slug" element={<ArticleDetail />} />
         <Route path="/projects" element={<Projects />} />
+        <Route path="/gallery" element={<Suspense fallback={<div className="loading-state">正在翻开相册…</div>}><Gallery /></Suspense>} />
         <Route path="/shop" element={<Shop />} />
         <Route path="/shop/:slug" element={<ProductDetail />} />
         <Route path="/links" element={<Links />} />
