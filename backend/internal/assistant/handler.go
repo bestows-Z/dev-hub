@@ -27,12 +27,13 @@ import (
 )
 
 type Handler struct {
-	db     *gorm.DB
-	client *http.Client
-	cfg    config.AssistantConfig
-	logger *zap.Logger
-	mu     sync.Mutex
-	usage  map[string]requestUsage
+	db      *gorm.DB
+	client  *http.Client
+	cfg     config.AssistantConfig
+	logger  *zap.Logger
+	limiter RateLimiter
+	mu      sync.Mutex
+	usage   map[string]requestUsage
 }
 
 type requestUsage struct {
@@ -42,6 +43,10 @@ type requestUsage struct {
 
 func NewHandler(db *gorm.DB, cfg config.AssistantConfig, logger *zap.Logger) *Handler {
 	return &Handler{db: db, cfg: cfg, logger: logger, client: &http.Client{Timeout: 20 * time.Second}, usage: make(map[string]requestUsage)}
+}
+
+func (h *Handler) SetRateLimiter(limiter RateLimiter) {
+	h.limiter = limiter
 }
 
 type chatInput struct {
@@ -60,7 +65,19 @@ type passage struct {
 }
 
 func (h *Handler) Chat(c *gin.Context) {
-	if !h.allow(c.Request.RemoteAddr, time.Now()) {
+	allowed := false
+	if h.limiter != nil {
+		var err error
+		allowed, err = h.limiter.Allow(c.Request.Context(), c.Request.RemoteAddr)
+		if err != nil {
+			h.logger.Error("assistant rate limit unavailable", zap.Error(err))
+			response.Error(c)
+			return
+		}
+	} else {
+		allowed = h.allow(c.Request.RemoteAddr, time.Now())
+	}
+	if !allowed {
 		response.Fail(c, 42901, "too many questions; please try again in a minute")
 		return
 	}

@@ -10,7 +10,7 @@
 
 1. 安装 Go 1.25、Node.js 24、Docker Desktop。
 2. 复制 `.env.example` 为 `.env`，设置非示例密码；不要提交 `.env`。
-3. 在仓库根目录执行 `docker compose --env-file .env -f deployments/docker-compose.yml up -d postgres redis minio`。
+3. 在仓库根目录执行 `docker compose --env-file .env -f deployments/docker-compose.yml up -d postgres redis minio`。API 启动时会检查 Redis 连接；助手问答按访客 IP 共享每分钟 20 次额度。部署在 Docker 网络内时将 `REDIS_ADDR` 设为 `redis:6379`。
 4. 执行数据库迁移（SQL 文件位于 `migrations/`，按文件名顺序执行）。
 5. 在 `backend/` 执行 `go run ./cmd/api`；在 `web/` 执行 `npm install && npm run dev`。
 

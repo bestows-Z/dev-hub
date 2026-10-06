@@ -12,12 +12,18 @@ type Config struct {
 	App       AppConfig
 	HTTP      HTTPConfig
 	Postgres  PostgresConfig
+	Redis     RedisConfig
 	Auth      AuthConfig
 	Assistant AssistantConfig
 	Storage   StorageConfig
 }
 
 type AuthConfig struct{ JWTSecret string }
+
+type RedisConfig struct {
+	Addr     string
+	Password string
+}
 
 type AssistantConfig struct {
 	APIBaseURL string
@@ -94,6 +100,8 @@ func Load() (*Config, error) {
 		"POSTGRES_TIMEZONE",
 		"POSTGRES_MAX_OPEN_CONNS",
 		"POSTGRES_MAX_IDLE_CONNS",
+		"REDIS_ADDR",
+		"REDIS_PASSWORD",
 		"AUTH_JWT_SECRET",
 		"ASSISTANT_API_BASE_URL",
 		"ASSISTANT_API_KEY",
@@ -127,6 +135,7 @@ func Load() (*Config, error) {
 
 	v.SetDefault("POSTGRES_MAX_OPEN_CONNS", 50)
 	v.SetDefault("POSTGRES_MAX_IDLE_CONNS", 10)
+	v.SetDefault("REDIS_ADDR", "127.0.0.1:6379")
 	v.SetDefault("MINIO_ENDPOINT", "127.0.0.1:9000")
 	v.SetDefault("MINIO_BUCKET", "devhub-projects")
 
@@ -154,7 +163,8 @@ func Load() (*Config, error) {
 			MaxOpenConns: v.GetInt("POSTGRES_MAX_OPEN_CONNS"),
 			MaxIdleConns: v.GetInt("POSTGRES_MAX_IDLE_CONNS"),
 		},
-		Auth: AuthConfig{JWTSecret: v.GetString("AUTH_JWT_SECRET")},
+		Auth:  AuthConfig{JWTSecret: v.GetString("AUTH_JWT_SECRET")},
+		Redis: RedisConfig{Addr: v.GetString("REDIS_ADDR"), Password: v.GetString("REDIS_PASSWORD")},
 		Assistant: AssistantConfig{
 			APIBaseURL: v.GetString("ASSISTANT_API_BASE_URL"),
 			APIKey:     v.GetString("ASSISTANT_API_KEY"),

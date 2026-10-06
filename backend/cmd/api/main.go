@@ -22,6 +22,7 @@ import (
 	"github.com/bestows-Z/dev-hub/backend/internal/storage"
 	"github.com/bestows-Z/dev-hub/backend/internal/store"
 	"github.com/bestows-Z/dev-hub/backend/internal/user"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
@@ -54,6 +55,14 @@ func main() {
 			zap.Error(err),
 		)
 	}
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.Redis.Addr, Password: cfg.Redis.Password})
+	redisCtx, redisCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	if err := redisClient.Ping(redisCtx).Err(); err != nil {
+		redisCancel()
+		logger.Fatal("initialize redis failed", zap.Error(err))
+	}
+	redisCancel()
+	defer redisClient.Close()
 	userRepository := user.NewRepository(
 		postgresClient.DB,
 	)
@@ -83,6 +92,7 @@ func main() {
 	runtimeHandler := project.NewRuntimeHandler(postgresClient.DB, logger)
 	adminHandler := admin.NewHandler(postgresClient.DB, objectStore, logger)
 	assistantHandler := assistant.NewHandler(postgresClient.DB, cfg.Assistant, logger)
+	assistantHandler.SetRateLimiter(assistant.NewRedisRateLimiter(redisClient))
 	engagementHandler := engagement.NewHandler(postgresClient.DB, logger)
 	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler, previewHandler, runtimeHandler, adminHandler, assistantHandler, engagementHandler)
 	address := fmt.Sprintf(
