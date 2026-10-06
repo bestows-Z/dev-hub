@@ -17,13 +17,21 @@ function AuthShell({ children, mode }: { children: ReactNode; mode: 'login' | 'r
   return (
     <div className="auth-page container">
       <div className="auth-scene" aria-hidden="true">
+        <span className="auth-scene-ring" />
+        <span className="auth-scene-ring second" />
         <div className="auth-scene-inner">
-          <span>DEVHUB / PERSONAL JOURNAL</span>
+          <span>一个正在更新的个人站点</span>
           <p>{mode === 'login' ? '好久不见，欢迎回来。' : '从这里开始，留下你的足迹。'}</p>
-          <small>写点东西，做点项目，记下路上的发现。</small>
+          <small>文章、项目，还有偶尔分享的小东西。</small>
         </div>
       </div>
-      <div className="auth-paper">{children}</div>
+      <div className="auth-paper">
+        <nav className="auth-tabs" aria-label="账户入口">
+          <Link to="/login" className={mode === 'login' ? 'active' : ''} aria-current={mode === 'login' ? 'page' : undefined}>登录</Link>
+          <Link to="/register" className={mode === 'register' ? 'active' : ''} aria-current={mode === 'register' ? 'page' : undefined}>注册</Link>
+        </nav>
+        {children}
+      </div>
     </div>
   )
 }
@@ -393,6 +401,7 @@ export function Account() {
     <div className="account-page container">
       <span className="auth-overline">账户 / 我的资料</span>
       <div className="account-card">
+        <div className="account-cover" aria-hidden="true" />
         <div className="account-avatar">
           {user?.avatar_url ? (
             <img src={user.avatar_url} alt="我的头像" />
@@ -405,12 +414,14 @@ export function Account() {
             {user?.display_name || user?.username || (loading ? '正在读取账户…' : '账户暂不可用')}
           </h1>
           <p>{user?.email || (loading ? '正在确认登录状态' : error)}</p>
+          {user?.bio && <p className="account-bio">{user.bio}</p>}
           {user && (
             <div className="account-meta">
               <span>{user.role === 1 ? '站点管理员' : '读者'}</span>
               <span>加入于 {formatDate(user.created_at)}</span>
             </div>
           )}
+          {user?.website_url && <a className="account-website" href={user.website_url} target="_blank" rel="noopener noreferrer">我的网站 <ArrowRight size={15} /></a>}
         </div>
         {user && (
           <button type="button" className="account-logout" onClick={logout} disabled={saving}>

@@ -499,3 +499,42 @@
     transition: none;
   }
 }
+
+.auth-page { max-width: 1160px; }
+.auth-scene { isolation: isolate; background-position: center 52%; }
+.auth-scene::before { content: ''; position: absolute; z-index: 1; inset: 0; background: linear-gradient(115deg, #19483c2e, transparent 50%); }
+.auth-scene-ring { position: absolute; z-index: 1; top: 12%; right: -135px; width: 360px; height: 360px; border: 1px solid #ffffff87; border-radius: 50%; box-shadow: 0 0 0 56px #ffffff0a, 0 0 0 115px #ffffff09; animation: auth-ring-drift 10s ease-in-out infinite alternate; }
+.auth-scene-ring.second { top: -180px; right: 80px; width: 210px; height: 210px; opacity: .35; animation-delay: -4s; }
+@keyframes auth-ring-drift { to { transform: translate3d(-16px, 15px, 0) scale(1.05); } }
+.auth-scene-inner { z-index: 2; }
+.auth-scene-inner span { font-size: 11px; font-weight: 700; letter-spacing: .16em; }
+.auth-scene-inner p { font-family: Georgia, 'Noto Serif SC', serif; font-size: clamp(31px, 3.2vw, 44px); line-height: 1.35; }
+.auth-paper { border-color: #e0e9df; background: #fffefa; box-shadow: 0 17px 48px #283a3220; }
+.auth-tabs { display: inline-flex; align-self: flex-start; gap: 27px; margin-bottom: 26px; border-bottom: 1px solid #dce8dc; }
+.auth-tabs a { position: relative; padding: 0 3px 10px; color: #8a9d8f; font-size: 13px; font-weight: 700; transition: color .2s ease; }
+.auth-tabs a:hover, .auth-tabs a.active { color: #297a54; }
+.auth-tabs a.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px; background: #3e9d71; }
+.auth-paper h1 { font-family: Georgia, 'Noto Serif SC', serif; letter-spacing: 0; }
+.auth-form > input, .auth-password-wrap input { height: 48px; border-radius: 8px; background: #fff; }
+.auth-submit { min-height: 48px; border-radius: 8px; background: linear-gradient(110deg, #2f8265, #4ca795); box-shadow: 0 8px 19px #34876929; }
+.auth-submit:not(:disabled):hover { background: linear-gradient(110deg, #287352, #348b7c); box-shadow: 0 11px 23px #3487693b; }
+.auth-submit svg { transition: transform .2s ease; }
+.auth-submit:hover svg { transform: translateX(4px); }
+.account-card { position: relative; isolation: isolate; min-height: 245px; padding-top: 158px; overflow: hidden; border-radius: 16px; }
+.account-cover { position: absolute; z-index: -1; top: 0; left: 0; right: 0; height: 139px; background: linear-gradient(90deg, #133d3580, #2348471a), url('/images/riverside-dusk.png') center 44% / cover; }
+.account-avatar { z-index: 1; width: 86px; height: 86px; margin-top: -55px; border: 5px solid #fff; box-shadow: 0 5px 20px #193d2b3d; }
+.account-details { min-width: 0; }
+.account-details h1 { font-family: Georgia, 'Noto Serif SC', serif; }
+.account-details .account-bio { max-width: 650px; margin: 0 0 12px; color: #5c7663; font-size: 13px; line-height: 1.6; }
+.account-website { display: inline-flex; align-items: center; gap: 5px; margin-top: 13px; color: #2e8760; font-size: 12px; font-weight: 750; }
+.account-website svg { transition: transform .2s ease; }
+.account-website:hover svg { transform: translateX(3px); }
+.account-edit, .account-avatar-editor { border-radius: 13px; transition: box-shadow .25s ease, transform .25s ease; }
+.account-edit:hover, .account-avatar-editor:hover { box-shadow: 0 13px 29px #24473317; transform: translateY(-2px); }
+:root[data-theme='night'] .auth-tabs { border-color: #405749; }
+:root[data-theme='night'] .auth-tabs a { color: #b4c8b7; }
+:root[data-theme='night'] .auth-tabs a.active { color: #95d4a9; }
+:root[data-theme='night'] .account-details .account-bio { color: #b9ceba; }
+:root[data-theme='night'] .account-avatar { border-color: #1f2e28; }
+@media (max-width: 760px) { .auth-scene-ring { width: 220px; height: 220px; right: -45px; top: -30px; } .auth-scene-ring.second { display: none; } .auth-tabs { margin-bottom: 18px; } .account-card { padding-top: 145px; } .account-avatar { width: 70px; height: 70px; margin-top: -42px; } }
+@media (prefers-reduced-motion: reduce) { .auth-scene-ring { animation: none; } .auth-submit svg, .account-edit, .account-avatar-editor { transition: none; } }
