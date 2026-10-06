@@ -10,6 +10,7 @@ import (
 
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
+	"github.com/bestows-Z/dev-hub/backend/internal/media"
 	"github.com/bestows-Z/dev-hub/backend/internal/storage"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -76,3 +77,25 @@ func page(c *gin.Context) (int, int) {
 }
 
 func clean(value string) string { return strings.TrimSpace(value) }
+
+func (h *Handler) requireCover(c *gin.Context, url, previous string) bool {
+	url = clean(url)
+	if url == "" || (previous != "" && url == previous) {
+		return true
+	}
+	id, ok := media.ParseURL(url)
+	if !ok {
+		response.Fail(c, response.CodeInvalidParams, "upload a cover image instead of entering an external URL")
+		return false
+	}
+	var count int64
+	if err := h.db.WithContext(c.Request.Context()).Model(&media.Asset{}).Where("id = ?", id).Count(&count).Error; err != nil {
+		h.failure(c, "check cover image", err)
+		return false
+	}
+	if count == 0 {
+		response.Fail(c, response.CodeInvalidParams, "cover image does not exist")
+		return false
+	}
+	return true
+}

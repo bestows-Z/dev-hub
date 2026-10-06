@@ -3,15 +3,21 @@ package admin
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
+	"github.com/bestows-Z/dev-hub/backend/internal/auth"
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
 	"github.com/bestows-Z/dev-hub/backend/internal/project"
+	"github.com/bestows-Z/dev-hub/backend/internal/runtimejobs"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgconn"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type projectInput struct {
@@ -31,7 +37,7 @@ func validProjectInput(input projectInput) bool {
 	runtimePreview := strings.TrimPrefix(input.PreviewURL, "/api/v1/project-runtimes/")
 	runtimeSlug := strings.TrimSuffix(runtimePreview, "/")
 	validPreviewURL := input.PreviewURL == "" || validWebURL(input.PreviewURL) || (localPreview != input.PreviewURL && validSlug(localSlug) && localPreview == localSlug+"/index.html") || (runtimePreview != input.PreviewURL && validSlug(runtimeSlug) && runtimePreview == runtimeSlug+"/")
-	return validSlug(input.Slug) && clean(input.Title) != "" && validPreviewURL && (input.SourceURL == "" || validWebURL(input.SourceURL)) && (input.CoverURL == "" || validWebURL(input.CoverURL))
+	return validSlug(input.Slug) && clean(input.Title) != "" && validPreviewURL && (input.SourceURL == "" || validWebURL(input.SourceURL)) && (input.CoverURL == "" || validWebURL(input.CoverURL) || strings.HasPrefix(input.CoverURL, "/api/v1/media/"))
 }
 
 func (h *Handler) ListProjects(c *gin.Context) {
@@ -45,18 +51,83 @@ func (h *Handler) ListProjects(c *gin.Context) {
 		h.failure(c, "count admin projects", err)
 		return
 	}
-	items := make([]project.Project, 0)
-	if err := q.Order("created_at DESC,id DESC").Limit(size).Offset((p - 1) * size).Find(&items).Error; err != nil {
+	items := make([]projectAdminRow, 0)
+	if err := q.Select("projects.*, latest_job.status AS runtime_job_status, latest_job.action AS runtime_job_action, latest_job.error_text AS runtime_job_error").
+		Joins("LEFT JOIN LATERAL (SELECT status, action, error_text FROM project_runtime_jobs WHERE project_id = projects.id ORDER BY id DESC LIMIT 1) latest_job ON true").
+		Order("projects.created_at DESC,projects.id DESC").Limit(size).Offset((p - 1) * size).Scan(&items).Error; err != nil {
 		h.failure(c, "list admin projects", err)
 		return
 	}
 	response.Success(c, gin.H{"items": items, "total": total, "page": p, "page_size": size})
 }
 
+type projectAdminRow struct {
+	project.Project
+	RuntimeJobStatus string `json:"runtime_job_status"`
+	RuntimeJobAction string `json:"runtime_job_action"`
+	RuntimeJobError  string `json:"runtime_job_error"`
+}
+
+func (h *Handler) projectHasActiveRuntimeJob(c *gin.Context, id uint64) (bool, error) {
+	var count int64
+	err := h.db.WithContext(c.Request.Context()).Model(&runtimejobs.Job{}).Where("project_id = ? AND status IN ?", id, []string{"queued", "running"}).Count(&count).Error
+	return count > 0, err
+}
+
+func (h *Handler) QueueProjectRuntime(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	var input struct {
+		Action string `json:"action" binding:"required,oneof=start stop"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.Fail(c, response.CodeInvalidParams, "invalid runtime action")
+		return
+	}
+	u := auth.CurrentUser(c)
+	if u == nil {
+		response.Fail(c, 40102, "authentication required")
+		return
+	}
+	var job runtimejobs.Job
+	err := h.db.WithContext(c.Request.Context()).Transaction(func(tx *gorm.DB) error {
+		var item project.Project
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&item, id).Error; err != nil {
+			return err
+		}
+		if input.Action == "start" && (item.RuntimeBundleKey == "" || item.RuntimeStatus == "running") {
+			return errRuntimeNotReady
+		}
+		job = runtimejobs.Job{ProjectID: id, Action: input.Action, Status: "queued", RequestedBy: u.ID}
+		return tx.Create(&job).Error
+	})
+	var pgErr *pgconn.PgError
+	if errors.Is(err, errRuntimeNotReady) {
+		response.Fail(c, 40907, "upload a runtime ZIP before starting, or check current runtime state")
+		return
+	}
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		response.Fail(c, 40908, "a runtime action is already in progress")
+		return
+	}
+	if err != nil {
+		h.failure(c, "queue project runtime", err)
+		return
+	}
+	response.Success(c, job)
+}
+
+var errRuntimeNotReady = errors.New("runtime is not ready for requested action")
+
 func (h *Handler) CreateProject(c *gin.Context) {
 	var input projectInput
 	if err := c.ShouldBindJSON(&input); err != nil || !validProjectInput(input) {
 		response.Fail(c, response.CodeInvalidParams, "invalid project details")
+		return
+	}
+	if !h.requireCover(c, input.CoverURL, "") {
 		return
 	}
 	status := input.Status
@@ -89,6 +160,16 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 		h.failure(c, "find project", err)
 		return
 	}
+	if !h.requireCover(c, input.CoverURL, item.CoverURL) {
+		return
+	}
+	if active, err := h.projectHasActiveRuntimeJob(c, id); err != nil {
+		h.failure(c, "check runtime job", err)
+		return
+	} else if active {
+		response.Fail(c, 40908, "wait for the runtime action to finish")
+		return
+	}
 	status := input.Status
 	if status == "" {
 		status = "draft"
@@ -119,6 +200,13 @@ func (h *Handler) DeleteProject(c *gin.Context) {
 	var item project.Project
 	if err := h.db.WithContext(c.Request.Context()).First(&item, id).Error; err != nil {
 		h.failure(c, "find project", err)
+		return
+	}
+	if active, err := h.projectHasActiveRuntimeJob(c, id); err != nil {
+		h.failure(c, "check runtime job", err)
+		return
+	} else if active {
+		response.Fail(c, 40908, "wait for the runtime action to finish")
 		return
 	}
 	if item.RuntimeStatus == "running" {
@@ -155,6 +243,13 @@ func (h *Handler) UploadRuntimeBundle(c *gin.Context) {
 	var item project.Project
 	if err := h.db.WithContext(c.Request.Context()).First(&item, id).Error; err != nil {
 		h.failure(c, "find project for runtime upload", err)
+		return
+	}
+	if active, err := h.projectHasActiveRuntimeJob(c, id); err != nil {
+		h.failure(c, "check runtime job", err)
+		return
+	} else if active {
+		response.Fail(c, 40908, "wait for the runtime action to finish")
 		return
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, project.MaxRuntimeBundleBytes+(1<<20))

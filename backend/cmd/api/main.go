@@ -19,6 +19,7 @@ import (
 	"github.com/bestows-Z/dev-hub/backend/internal/engagement"
 	"github.com/bestows-Z/dev-hub/backend/internal/gallery"
 	httprouter "github.com/bestows-Z/dev-hub/backend/internal/http/router"
+	"github.com/bestows-Z/dev-hub/backend/internal/media"
 	pg "github.com/bestows-Z/dev-hub/backend/internal/platform/postgres"
 	"github.com/bestows-Z/dev-hub/backend/internal/project"
 	"github.com/bestows-Z/dev-hub/backend/internal/search"
@@ -136,7 +137,8 @@ func main() {
 		}
 	}
 	analyticsHandler := analytics.NewHandler(analyticsStore, logger)
-	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler, previewHandler, runtimeHandler, galleryHandler, adminHandler, assistantHandler, engagementHandler, analyticsHandler, analyticsBroker)
+	mediaHandler := media.NewHandler(postgresClient.DB, objectStore, logger)
+	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler, previewHandler, runtimeHandler, galleryHandler, mediaHandler, adminHandler, assistantHandler, engagementHandler, analyticsHandler, analyticsBroker)
 	address := fmt.Sprintf(
 		"%s:%d",
 		cfg.HTTP.Host,

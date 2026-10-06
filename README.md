@@ -1,53 +1,169 @@
 # DevHub
 
-一个个人博客、作品展示与数字商店。后端沿用仓库现有的 Go/Gin，数据存 PostgreSQL；前端使用 React、TypeScript 与 Vite。接口契约位于 [`api/openapi.yaml`](api/openapi.yaml)，可直接导入 Apifox。
+一个可自行部署的博客系统：写文章、展示项目、经营数字商品，也为读者交流和创作留出空间。
 
-## 状态
+网站与管理台使用 React、TypeScript、Vite；API 使用 Go、Gin、GORM。PostgreSQL 保存业务数据，MinIO 保存上传文件，Redis 管理共享限流，Elasticsearch 提供文章搜索，RabbitMQ 与 MongoDB 处理访问统计。基础服务可通过 Docker Compose 启动。
 
-项目按功能逐步交付。已包含文章、友链、商品与订单、项目目录、静态与动态项目预览、文章问答和管理页。交付边界见 [`docs/architecture.md`](docs/architecture.md)。
+> 项目持续开发中。下表区分已经可用和正在建设的功能，请按实际状态评估部署需求。
 
-## 本地准备
+## 功能状态
 
-1. 安装 Go 1.25、Node.js 24、Docker Desktop。
-2. 复制 `.env.example` 为 `.env`，设置非示例密码；不要提交 `.env`。
-3. 在仓库根目录执行 `docker compose --env-file .env -f deployments/docker-compose.yml up -d postgres redis minio elasticsearch mongodb rabbitmq`。API 启动时会检查 Redis 连接；助手问答按访客 IP 共享每分钟 20 次额度。文章全文搜索使用 Elasticsearch，启动时从 PostgreSQL 重建索引；不可用时自动使用数据库搜索。后台访问统计通过 RabbitMQ 异步写入 MongoDB；两者不可用时公开页面仍可访问。部署在 Docker 网络内时将 `REDIS_ADDR` 设为 `redis:6379`、`ELASTICSEARCH_URL` 设为 `http://elasticsearch:9200`、`MONGO_ADDR` 设为 `mongodb:27017`、`RABBITMQ_ADDR` 设为 `rabbitmq:5672`。
-4. 安装 Goose 后在仓库根目录执行 `goose -env .env -dir migrations up`。迁移文件同时含 Up/Down，手工执行时只能取 Up 段。
-5. 在 `backend/` 执行 `go run ./cmd/api`；在 `web/` 执行 `npm install && npm run dev`。
+| 模块 | 当前可用 | 正在建设 |
+| --- | --- | --- |
+| 文章 | 栏目、标签、全文搜索、Markdown 目录、代码高亮、草稿与发布 | 作者申请、多人创作和文章归属权限 |
+| 互动 | 登录评论、评论审核、友链申请与审核 | 评论回复、IP 属地 |
+| 项目 | 外链、静态 ZIP 预览、完整前后端 ZIP 上传、后台启停 Docker 预览 | 构建日志与运行监控 |
+| 商店 | 登录后下单、库存预留、个人订单、取消订单、后台状态管理 | 邮箱通知与在线支付 |
+| 账户 | 注册、密码登录、个人资料、头像、独立管理台 | 邮箱验证码、GitHub 和 Google 登录 |
+| 内容 | 相册上传与管理；空白相册等待站长上传 | 更完整的游记模块 |
+| 助手 | 可拖动的小人物、文章检索问答、可选模型生成和浏览器朗读 | 更多动作与语音输入 |
 
-首次使用管理功能：先在 `/register` 创建自己的账户，再在 `backend/` 执行 `go run ./cmd/admin promote <用户名>`。随后在 `/login` 登录，进入 `/admin`。管理员权限只通过本地命令授予，公开注册不会成为管理员。
+文章、商品、项目的封面由后台上传到本站，页面使用服务器生成的图片地址。主题、粒子和飘雪效果可在左下角切换；系统开启“减少动态效果”时，持续动画会停用。
 
-前台提供 `/login`、`/register` 和 `/account` 页面。注册后自动登录；会话令牌保存在当前浏览器标签页的 `sessionStorage`，关闭标签页后需要重新登录。管理员通过同一账户进入 `/admin`。
+## 技术结构
 
-账户页可以修改显示名称、邮箱、个人简介和网站链接，也可以上传或移除头像。头像仅接收不超过 2 MiB 的 PNG/JPEG；服务端去除原图元数据后保存到 MinIO，并在 API 启动时检查存储桶。升级旧数据库时执行 `migrations/20261006003000_user_profiles.sql` 的 Up 段。
+~~~mermaid
+flowchart LR
+  Reader[读者 / 管理员] --> Web[React 网站与独立管理台]
+  Web --> API[Go / Gin API]
+  API --> PG[(PostgreSQL)]
+  API --> MinIO[(MinIO)]
+  API --> Redis[(Redis)]
+  API --> ES[(Elasticsearch)]
+  API --> MQ[RabbitMQ]
+  MQ --> Mongo[(MongoDB)]
+  API --> Jobs[(预览任务表)]
+  Worker[独立预览工作进程] --> Jobs
+  Worker --> Docker[Docker 项目容器]
+~~~
 
-页面左下角可切换白天或夜间主题、粒子与飘雪效果；选择会保存在当前浏览器。系统开启“减少动态效果”时，粒子和飘雪会自动停用。
+PostgreSQL 是业务数据的事实来源。文章索引可从数据库重建；Elasticsearch 不可用时，搜索回退到数据库。访问事件经 RabbitMQ 写入 MongoDB，统计链路故障不会阻断公开页面。项目启动与停止由独立工作进程执行，API 不直接调用 Docker。
 
-页面右下角的博客小助手可以用鼠标或触屏拖动。位置保存在浏览器本地；打开对话后点击“归位”可恢复默认位置。
+~~~text
+backend/
+  cmd/api/             HTTP API
+  cmd/admin/           管理员本地命令
+  cmd/preview/         Docker 预览运行器
+  cmd/previewworker/   预览任务工作进程
+  internal/            按业务拆分的处理器与服务
+web/                  React + TypeScript 前端
+migrations/           Goose 数据库迁移
+deployments/          基础服务 Docker Compose
+templates/            完整项目 ZIP 模板源文件
+docs/                 架构与项目预览说明
+~~~
 
-文章管理支持技术、游记、随笔、记录四个栏目和自定义标签。前台 `/articles` 可搜索标题、摘要与正文，并按栏目或标签筛选；`/travel`、`/essays`、`/records` 目前不会填充虚构内容，站长发布对应文章后自动展示。更新旧数据库时需执行 `migrations/20261006001000_article_categories.sql` 的 Up 段。
+## 本地启动
 
-文章正文支持 GitHub 风格 Markdown、语法高亮、代码复制、自动目录和移动端阅读布局。目录与正文由同一套 Markdown 解析规则生成锚点，重复标题也能准确跳转。
+### 环境要求
 
-登录读者可以在文章下提交评论、在友链页申请交换链接。内容先进入审核队列；站长在 `/admin` 的“评论审核”和“友链申请”中通过或驳回。通过的评论才公开，通过的友链申请会自动创建公开友链。请一并执行 `migrations/20261006002000_reader_interactions.sql` 的 Up 段。
+- Go 1.25.9 或更高的 1.25 版本
+- Node.js 24、npm
+- Docker 与 Docker Compose
+- Goose 数据库迁移命令
 
-管理台 `/admin` 提供文章、项目、商品、相册、友链、订单与审核工作区。首页统计来自实时管理接口，并展示匿名访问趋势；各类记录使用表格、服务端搜索与分页，文章编辑器可切换 Markdown 预览。审核栏可查看待审、已通过和已驳回记录。
+### 1. 配置环境
 
-相册 `/gallery` 初始为空。站长可在后台新建照片、上传不超过 10 MiB 的 JPEG/PNG/WebP/GIF 到 MinIO，再发布到公开相册；支持标题、拍摄地点和日期。升级旧数据库时执行 `migrations/20261006005000_gallery.sql` 的 Up 段。
+~~~sh
+git clone https://github.com/bestows-Z/dev-hub.git
+cd dev-hub
+cp .env.example .env
+~~~
 
-开发时前端由 Vite 代理 `/api` 到 `http://localhost:8080`。API 健康检查：`GET /api/v1/health`。
+编辑 .env，至少更换 PostgreSQL、Redis、MongoDB、RabbitMQ、MinIO 的示例密码，以及不少于 32 字符的 AUTH_JWT_SECRET。修改 PostgreSQL 密码时，也要同步修改 GOOSE_DBSTRING。.env 已被 Git 忽略，不要提交密钥。
 
-文章助手默认从已发布文章中检索并返回相关段落与原文链接。若要让它生成自然语言回答，在 `.env` 中同时设置 `ASSISTANT_API_BASE_URL`、`ASSISTANT_API_KEY`、`ASSISTANT_MODEL`，服务端会调用兼容 Chat Completions 的模型接口。密钥只保存在服务端；模型不可用时仍返回文章摘录。
+### 2. 启动基础服务并迁移数据库
 
-右下角的小人物可以打开对话，回答旁的“朗读”使用浏览器内置语音合成；语音是否可用取决于访客浏览器，不会自动播放。
+~~~sh
+docker compose --env-file .env -f deployments/docker-compose.yml up -d
+goose -env .env -dir migrations up
+~~~
 
-静态项目预览：先在管理页创建项目，再上传包含 `index.html` 的构建产物 ZIP（可直接压缩 `dist/` 目录），最后发布项目。前端构建时请使用相对资源路径，例如 Vite 的 `base: './'`，否则从子路径打开时资源会指向站点根目录。压缩包上限 20 MiB；只接收网页资源文件，拒绝隐藏文件、软链接和越界路径。MinIO 存储使用 `.env` 中的 `MINIO_*` 配置；正式部署时请改用独立服务账号。
+新环境应由 Goose 从第一条迁移顺序执行。已有环境先备份 PostgreSQL，再运行同一条 up 命令。迁移文件含 Up 与 Down 两段；不要把整个 SQL 文件直接交给 psql 执行。
 
-前后端动态预览：后台可上传完整项目 ZIP，目录结构见可下载的 [项目模板](web/public/downloads/project-runtime-template.zip)；站长在服务器执行 `go run ./cmd/preview deploy-zip --slug 项目标识`，运行器从 MinIO 读取代码、离线构建 Docker 镜像并启动前后端。也可使用预先构建的镜像执行 `deploy`。已发布的站内项目会在首页和项目页的隔离窗口中预览，外部项目链接仍可单独打开。应用容器各自运行在内部网络，通过只绑定 `127.0.0.1` 的网关连接主 API。操作步骤、镜像要求与限制见 [`docs/project-runtime.md`](docs/project-runtime.md)。普通用户上传 ZIP 不会触发容器执行。
+### 3. 启动 API 与网站
 
-## 接口文档
+在两个终端分别执行：
 
-在 Apifox 选择“项目设置 → 导入数据 → OpenAPI/Swagger”，导入 `api/openapi.yaml`。每次接口行为变更应与该文件一起提交。
+~~~sh
+cd backend
+go run ./cmd/api
+~~~
 
-## 安全边界
+~~~sh
+cd web
+npm install
+npm run dev
+~~~
 
-上传的项目代码属于不可信内容。动态镜像只能由能操作宿主 Docker 的站长通过本地命令发布；预览容器不挂载 Docker Socket、数据库凭证或宿主目录，并限制 CPU、内存和进程数。Docker 构建本身仍会处理项目代码，站长应先审查 ZIP，面向不可信第三方代码时建议部署到专用机器。支付采用线下确认订单的首版流程，不在网站收集银行卡信息。
+打开 http://localhost:5173。Vite 将 /api 代理到本机 8080 端口。GET /api/v1/health 可检查 API 是否存活。
+
+### 4. 启用项目的后台启动与停止
+
+需要运行完整前后端项目时，在 backend/ 目录额外启动预览工作进程：
+
+~~~sh
+mkdir -p bin
+go build -o bin/devhub-preview ./cmd/preview
+go build -o bin/devhub-previewworker ./cmd/previewworker
+./bin/devhub-previewworker
+~~~
+
+工作进程需要连接 PostgreSQL、MinIO 和本机 Docker。上线时用进程管理器保持它运行，Docker 权限只授予这个进程。若工作进程没有启动，后台的任务会显示“排队中”。ZIP 格式、端口与网络隔离见[项目预览说明](docs/project-runtime.md)。
+
+## 首次配置管理员
+
+1. 在网站 /register 创建普通账户。
+2. 在 backend/ 目录执行 `go run ./cmd/admin promote <用户名>`。
+3. 重新登录，打开 /admin。
+
+公开注册不会获得管理权限。后台使用独立页面，不带前台导航和页脚。文章、项目、商品、订单、相册、评论及友链申请都从后台管理；列表支持搜索与分页。
+
+目前注册与登录仍使用密码。邮箱验证码及第三方登录尚未接入。
+
+## 内容与文件
+
+- **文章：** Markdown 支持 GitHub 风格表格、代码高亮、目录及复制按钮。搜索索引只收录已发布文章。栏目包括技术、游记、随笔、记录。
+- **封面：** 文章、项目、商品在编辑时选择 PNG 或 JPEG 图片，保存时上传 MinIO；服务端重新编码并生成 /api/v1/media/... 地址。单张上限 8 MiB。
+- **头像：** 账户页上传 PNG/JPEG，服务端重新编码后保存到 MinIO，单张上限 2 MiB。
+- **相册：** 初始为空。管理员上传照片并发布后才出现在公开页面。
+- **友链：** 登录用户提交申请，管理员审核通过后公开展示。
+
+文章助手只检索已发布文章。未配置模型时返回相关原文片段和链接；配置 ASSISTANT_API_BASE_URL、ASSISTANT_API_KEY、ASSISTANT_MODEL 后可生成自然语言回答。模型密钥只放在服务端环境变量中。
+
+## 项目预览方式
+
+| 方式 | 提交内容 | 运行位置 |
+| --- | --- | --- |
+| 外部链接 | 完整的 HTTPS 地址 | 原站点 |
+| 静态预览 | 含 index.html 的构建产物 ZIP | 本站读取 MinIO 文件 |
+| 完整项目 | 根目录含 frontend/、backend/、docker-compose.yml 的 ZIP | 独立工作进程构建 Docker 容器，本站代理预览 |
+
+完整项目可下载 [ZIP 模板](web/public/downloads/project-runtime-template.zip)。后台上传后点击“启动”，可查看排队、执行、成功或失败状态，也可以点击“停止”。公开访问仍取决于项目的发布状态。需要的基础镜像应提前存在于服务器；构建关闭网络。项目容器使用独立网络、只读文件系统和资源限制，网关端口只绑定到 127.0.0.1。
+
+完整项目 ZIP 含可执行代码。请只运行自己审查过的内容；为不受信任的第三方提供构建服务时，应将工作进程和 Docker 放在专用机器或虚拟机中。不要给公开 API 容器挂载 Docker Socket。
+
+## 商店与订单
+
+访客可以浏览商品；登录后才能创建订单。服务端从登录身份读取用户 ID 和邮箱，不接受客户端冒用的订单归属信息。创建订单时在数据库事务中检查库存、计算总价并预留数量；用户可在个人中心查看订单，取消待付款订单会退回库存。管理员可查看用户名和订单状态。
+
+当前是**线下确认订单**流程，没有在线支付，也不会在网页中收集银行卡信息。邮箱发送能力尚未接入；收到 SMTP 配置后才能自动发送通知。请不要把“待付款”理解为已经收到款项。
+
+## 开发与验证
+
+~~~sh
+cd backend && go test ./...
+cd web && npm run build
+~~~
+
+连接 Docker 服务的集成测试使用显式环境开关，例如 DEVHUB_TEST_MEDIA=1、DEVHUB_TEST_ORDERS=1、DEVHUB_TEST_POSTGRES=1、DEVHUB_TEST_RUNTIME_WORKER=1。测试会创建并清理本地测试数据，不要对生产数据库开启这些开关。
+
+提交更改前运行格式化与构建检查。数据库结构变化请增加可回滚的 Goose 迁移。新增 API 要核对权限、输入大小、错误处理和前端状态。仓库中的 .env.example 只包含示例值。
+
+## 文档与参与
+
+- [系统架构](docs/architecture.md)
+- [动态项目预览](docs/project-runtime.md)
+- [问题反馈与功能建议](https://github.com/bestows-Z/dev-hub/issues)
+
+欢迎提交问题或改进。建议先描述复现步骤、预期结果与环境，再提交范围清楚的 PR。功能开发请连同迁移、必要的验证和使用说明一起提交。个人任务计划与临时工作笔记已加入 .gitignore，不会作为项目文档上传。

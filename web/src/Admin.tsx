@@ -16,9 +16,11 @@ import {
   LogOut,
   MessageCircle,
   Plus,
+  Play,
   RefreshCw,
   Search,
   ShoppingBag,
+  Square,
   Trash2,
   UploadCloud,
   type LucideIcon,
@@ -94,7 +96,6 @@ const fields: Record<EditableKind, Field[]> = {
     { key: 'title', label: '标题' },
     { key: 'excerpt', label: '摘要', type: 'textarea' },
     { key: 'body_md', label: '正文（Markdown）', type: 'textarea' },
-    { key: 'cover_url', label: '封面图片地址', type: 'url' },
     { key: 'category', label: '栏目' },
     { key: 'tags', label: '标签（用逗号分隔）' },
     { key: 'status', label: '状态' },
@@ -103,7 +104,6 @@ const fields: Record<EditableKind, Field[]> = {
     { key: 'slug', label: '网址标识（英文和短横线）' },
     { key: 'title', label: '项目名称' },
     { key: 'description', label: '项目介绍', type: 'textarea' },
-    { key: 'cover_url', label: '封面图片地址', type: 'url' },
     { key: 'tags', label: '技术标签（用逗号分隔）' },
     { key: 'preview_url', label: '预览地址', type: 'url' },
     { key: 'source_url', label: '源码地址', type: 'url' },
@@ -120,7 +120,6 @@ const fields: Record<EditableKind, Field[]> = {
     { key: 'slug', label: '网址标识（英文和短横线）' },
     { key: 'name', label: '商品名称' },
     { key: 'description', label: '商品介绍', type: 'textarea' },
-    { key: 'cover_url', label: '封面图片地址', type: 'url' },
     { key: 'price_cents', label: '价格（分）', type: 'number' },
     { key: 'stock', label: '库存', type: 'number' },
     { key: 'status', label: '状态' },
@@ -207,11 +206,14 @@ export default function Admin() {
   const [previewMarkdown, setPreviewMarkdown] = useState(false)
   const [form, setForm] = useState<Record<string, unknown> | null>(null)
   const [galleryFile, setGalleryFile] = useState<File | null>(null)
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [authorized, setAuthorized] = useState(false)
   const [authRetry, setAuthRetry] = useState(0)
   const requestSequence = useRef(0)
+  useEffect(() => () => { if (coverPreview) URL.revokeObjectURL(coverPreview) }, [coverPreview])
   const currentListKey = useRef(listKey(kind, page, reviewStatus, search, token))
   currentListKey.current = listKey(kind, page, reviewStatus, search, token)
 
@@ -307,6 +309,13 @@ export default function Admin() {
     void refresh()
   }, [refresh])
   useEffect(() => {
+    if (kind !== 'projects' || !items.some((item) => item.runtime_job_status === 'queued' || item.runtime_job_status === 'running')) return
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshLatest.current()
+    }, 3000)
+    return () => window.clearInterval(interval)
+  }, [kind, items])
+  useEffect(() => {
     if (kind === 'overview') void loadStats()
   }, [kind, loadStats])
 
@@ -337,6 +346,8 @@ export default function Admin() {
     setItems([])
     setForm(null)
     setGalleryFile(null)
+    setCoverFile(null)
+    setCoverPreview('')
     setAuthorized(false)
   }
   async function save(event: FormEvent) {
@@ -344,6 +355,7 @@ export default function Admin() {
     if (!form || !isEditableKind(kind)) return
     setBusy(true)
     setMessage('')
+    let uploadedCoverID = ''
     try {
       const id = form.id as number | undefined
       if (kind === 'gallery') {
@@ -363,15 +375,26 @@ export default function Admin() {
         await request(`/admin/gallery/${savedID}`, { method: 'PUT', body: JSON.stringify(payload) })
         setGalleryFile(null)
       } else {
+        const payload = toPayload(kind, form)
+        if (coverFile && (kind === 'articles' || kind === 'projects' || kind === 'products')) {
+          const body = new FormData()
+          body.append('file', coverFile)
+          const uploaded = await request<{ id: string; url: string }>('/admin/media', { method: 'POST', body })
+          uploadedCoverID = uploaded.id
+          payload.cover_url = uploaded.url
+        }
         await request(`/admin/${kind}${id ? `/${id}` : ''}`, {
           method: id ? 'PUT' : 'POST',
-          body: JSON.stringify(toPayload(kind, form)),
+          body: JSON.stringify(payload),
         })
       }
       setMessage(id ? '已保存修改' : '已创建')
       setForm(null)
+      setCoverFile(null)
+      setCoverPreview('')
       await refreshLatest.current()
     } catch (error) {
+      if (uploadedCoverID) void request(`/admin/media/${uploadedCoverID}`, { method: 'DELETE' }).catch(() => {})
       setMessage(error instanceof Error ? error.message : '保存失败')
     } finally {
       setBusy(false)
@@ -456,10 +479,27 @@ export default function Admin() {
       const body = new FormData()
       body.append('file', file)
       await request(`/admin/projects/${item.id}/runtime-bundle`, { method: 'POST', body })
-      setMessage(`项目代码已上传。请在服务器执行：go run ./cmd/preview deploy-zip --slug ${String(item.slug)}`)
+      setMessage('完整项目已上传。现在可以在项目列表中点击「启动」。')
       await refreshLatest.current()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '上传失败')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function runtimeAction(item: Item, action: 'start' | 'stop') {
+    setBusy(true)
+    setMessage('')
+    try {
+      await request(`/admin/projects/${item.id}/runtime-jobs`, {
+        method: 'POST',
+        body: JSON.stringify({ action }),
+      })
+      setMessage(action === 'start' ? '项目已加入构建队列，状态会自动更新。' : '停止任务已提交。')
+      await refreshLatest.current()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '操作失败')
     } finally {
       setBusy(false)
     }
@@ -478,6 +518,8 @@ export default function Admin() {
     setTotal(0)
     setForm(null)
     setGalleryFile(null)
+    setCoverFile(null)
+    setCoverPreview('')
     setPreviewMarkdown(false)
     setMessage('')
   }
@@ -802,6 +844,8 @@ export default function Admin() {
                     onClick={() => {
                       setForm({ ...blank[kind] })
                       setGalleryFile(null)
+                      setCoverFile(null)
+                      setCoverPreview('')
                       setPreviewMarkdown(false)
                     }}
                   >
@@ -837,7 +881,7 @@ export default function Admin() {
             </div>
             {kind === 'projects' && (
               <div className="admin-project-help">
-                <span>项目预览支持外部地址、静态页面 ZIP 和完整前后端 ZIP。完整项目上传后，由站长在服务器构建运行。</span>
+                <span>项目预览支持外部地址、静态页面 ZIP 和完整前后端 ZIP。完整项目上传后，可直接在列表里启动或停止。</span>
                 <a href="/downloads/project-runtime-template.zip" download>下载完整项目模板</a>
               </div>
             )}
@@ -849,7 +893,7 @@ export default function Admin() {
                     {form.id ? '编辑' : '新建'}
                     {tabs.find((tab) => tab.kind === kind)?.label}
                   </h2>
-                  <button type="button" onClick={() => { setForm(null); setGalleryFile(null) }}>
+                  <button type="button" onClick={() => { setForm(null); setGalleryFile(null); setCoverFile(null); setCoverPreview('') }}>
                     取消
                   </button>
                 </div>
@@ -884,6 +928,23 @@ export default function Admin() {
                   </div>
                 ) : (
                   <div className="admin-fields">
+                    {(kind === 'articles' || kind === 'projects' || kind === 'products') && <div className="admin-cover-upload">
+                      <span>封面图片</span>
+                      {(coverPreview || Boolean(form.cover_url)) && <img src={coverPreview || String(form.cover_url)} alt="封面预览" />}
+                      <label>选择图片上传到本站
+                        <input type="file" accept="image/png,image/jpeg" disabled={busy} onChange={(event) => {
+                          const file = event.target.files?.[0]
+                          event.target.value = ''
+                          if (!file) return
+                          if (file.size > 8 * 1024 * 1024 || !['image/png', 'image/jpeg'].includes(file.type)) { setMessage('封面需为不超过 8 MiB 的 PNG 或 JPEG'); return }
+                          setCoverFile(file)
+                          setCoverPreview(URL.createObjectURL(file))
+                          setMessage('')
+                        }} />
+                      </label>
+                      {(coverPreview || Boolean(form.cover_url)) && <button type="button" onClick={() => { setCoverFile(null); setCoverPreview(''); setForm({ ...form, cover_url: '' }) }}>移除封面</button>}
+                      <small>选择后会在保存时上传，网站自动生成图片地址。</small>
+                    </div>}
                     {fields[kind].map((field) => (
                       <label key={field.key} className={field.type === 'textarea' ? 'wide' : ''}>
                         <span>{field.label}</span>
@@ -969,6 +1030,8 @@ export default function Admin() {
                         {kind === 'links' ? (item.enabled ? '公开' : '隐藏') : ({ published: '公开', draft: '草稿', pending: '待审核', approved: '已通过', rejected: '已驳回', pending_payment: '待付款', paid: '已付款', delivered: '已交付', cancelled: '已取消' } as Record<string, string>)[String(item.status)] || String(item.status || '—')}
                       </span>
                       {kind === 'projects' && item.runtime_status === 'running' && <small className="admin-runtime-status">前后端运行中</small>}
+                      {kind === 'projects' && (item.runtime_job_status === 'queued' || item.runtime_job_status === 'running') && <small className="admin-runtime-status">{item.runtime_job_action === 'start' ? '正在启动' : '正在停止'} · {item.runtime_job_status === 'queued' ? '排队中' : '执行中'}</small>}
+                      {kind === 'projects' && item.runtime_job_status === 'failed' && <small className="admin-runtime-error" title={String(item.runtime_job_error || '')}>上次操作失败：{String(item.runtime_job_error || '请检查运行服务')}</small>}
                     </td>
                     <td data-label="时间" className="admin-table-date">{item.created_at ? formatDate(String(item.created_at)) : '—'}</td>
                     <td data-label="操作"><div className="admin-row-actions">
@@ -1018,6 +1081,14 @@ export default function Admin() {
                         <>
                           {kind === 'projects' && (
                             <>
+                              {item.runtime_status === 'running' ? (
+                                <button type="button" disabled={busy || item.runtime_job_status === 'queued' || item.runtime_job_status === 'running'} onClick={() => void runtimeAction(item, 'stop')} title="停止完整项目"><Square size={15} /> 停止</button>
+                              ) : item.runtime_bundle_uploaded && (
+                                <button type="button" disabled={busy || item.runtime_job_status === 'queued' || item.runtime_job_status === 'running'} onClick={() => void runtimeAction(item, 'start')} title="构建并启动完整项目"><Play size={15} /> 启动</button>
+                              )}
+                              {item.runtime_status !== 'running' && item.runtime_job_status === 'failed' && (
+                                <button type="button" disabled={busy} onClick={() => void runtimeAction(item, 'stop')} title="清理失败任务留下的容器和网络"><Square size={15} /> 清理</button>
+                              )}
                               {item.preview_url && item.status === 'published' && (
                                 <a
                                   href={String(item.preview_url)}
@@ -1059,6 +1130,8 @@ export default function Admin() {
                             onClick={() => {
                               setForm(normalize(kind, item))
                               setGalleryFile(null)
+                              setCoverFile(null)
+                              setCoverPreview('')
                               setPreviewMarkdown(false)
                             }}
                             aria-label={`编辑 ${String(item.title || item.name)}`}

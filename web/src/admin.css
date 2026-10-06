@@ -197,6 +197,17 @@
 .admin-fields label.wide {
   grid-column: 1/-1;
 }
+.admin-cover-upload { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 15px; grid-column: 1/-1; padding: 16px; border: 1px dashed #b8d2bd; border-radius: 10px; background: #f6faf5; }
+.admin-cover-upload > span { width: 100%; color: #405c49; font-size: 12px; font-weight: 700; }
+.admin-cover-upload img { width: 150px; height: 92px; border-radius: 7px; object-fit: cover; }
+.admin-cover-upload label { position: relative; display: inline-flex; flex-direction: row; align-items: center; justify-content: center; min-height: 37px; padding: 8px 11px; border: 1px solid #96b99f; border-radius: 7px; background: #eaf4e9; color: #286345; cursor: pointer; }
+.admin-cover-upload input[type='file'] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.admin-cover-upload button { border: 0; background: transparent; color: #936251; cursor: pointer; }
+.admin-cover-upload small { flex-basis: 100%; color: #738979; font-size: 11px; }
+:root[data-theme='night'] .admin-cover-upload { background: #263b2d; border-color: #526e55; }
+:root[data-theme='night'] .admin-cover-upload > span { color: #dfecdf; }
+:root[data-theme='night'] .admin-cover-upload label { background: #304b37; border-color: #678d6a; color: #d0ebd2; }
+:root[data-theme='night'] .admin-cover-upload small { color: #aac2ac; }
 .admin-fields textarea {
   resize: vertical;
   min-height: 90px;
@@ -857,6 +868,8 @@
 .admin-status { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 9px; background: #f2f3ef; color: #69756e; white-space: nowrap; }
 .admin-status.is-positive { background: #e7f4e9; color: #2b7854; }
 .admin-runtime-status { display: block; margin-top: 5px; color: #347d69; white-space: nowrap; }
+.admin-runtime-error { display: block; max-width: 190px; margin-top: 5px; color: #a4514a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-row-actions button:disabled { opacity: .5; cursor: wait; }
 @media (max-width: 720px) {
   .admin-table { min-width: 0; }
   .admin-table thead { display: none; }

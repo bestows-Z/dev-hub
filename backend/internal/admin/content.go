@@ -46,6 +46,9 @@ func (h *Handler) CreateArticle(c *gin.Context) {
 		response.Fail(c, response.CodeInvalidParams, "invalid article details")
 		return
 	}
+	if !h.requireCover(c, input.CoverURL, "") {
+		return
+	}
 	status := input.Status
 	if status == "" {
 		status = "draft"
@@ -83,6 +86,9 @@ func (h *Handler) UpdateArticle(c *gin.Context) {
 	var article content.Article
 	if err := h.db.WithContext(c.Request.Context()).First(&article, id).Error; err != nil {
 		h.failure(c, "find article", err)
+		return
+	}
+	if !h.requireCover(c, input.CoverURL, article.CoverURL) {
 		return
 	}
 	status := input.Status

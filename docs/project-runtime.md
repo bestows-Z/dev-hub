@@ -1,6 +1,6 @@
 # 前后端项目的动态预览
 
-动态预览由站长在运行 API 的机器上发布。访客只会看到已发布项目的前端与 API 入口。后台支持上传完整前后端 ZIP；上传接口只做校验和存储，站长在服务器运行构建命令后项目才会启动。
+动态预览由后台发起，独立工作进程在服务器上构建和启停容器。访客只会看到已发布项目的前端与 API 入口。API 进程无需 Docker Socket；只有工作进程需要访问 Docker。
 
 ## 上传完整项目 ZIP
 
@@ -17,13 +17,17 @@ README.md（可选）
 
 Compose 文件必须恰好包含 `frontend` 和 `backend` 两个服务，构建目录分别为 `./frontend`、`./backend`。它方便在本机复现；运行器只读取构建目录，不执行上传的 Compose 指令。ZIP 最大 50 MiB，解压总量最大 250 MiB，拒绝越界路径、符号链接和其他特殊文件。前后端服务应监听容器内 `0.0.0.0:8080`，以 UID 10001 在只读根文件系统运行。基础镜像需事先存在于服务器；构建时关闭网络。
 
-在后台创建项目并上传完整 ZIP 后，在服务器的 `backend/` 目录执行：
+在服务器的 `backend/` 目录构建并启动工作进程：
 
 ```sh
-go run ./cmd/preview deploy-zip --slug my-project
+go build -o bin/devhub-preview ./cmd/preview
+go build -o bin/devhub-previewworker ./cmd/previewworker
+./bin/devhub-previewworker
 ```
 
-运行器从 MinIO 读取 ZIP，解压到临时目录，分别用 Docker 构建前后端镜像，再将其放入项目独立网络中运行。构建失败时，已有预览保持运行。需要使用非 8080 端口时，可添加 `--frontend-port` 和 `--backend-port`。在后台更改外部“预览地址”也可直接使用外链，不需要上传 ZIP。
+完成 `20261006007000_project_runtime_jobs.sql` 迁移后，在管理台上传完整 ZIP，点击项目行的「启动」或「停止」。后台会显示排队、执行、成功和失败状态。工作进程从 MinIO 读取 ZIP，解压到临时目录，分别用 Docker 构建前后端镜像，再将其放入项目独立网络中运行。构建失败时，已有预览保持运行。在后台更改外部“预览地址”也可直接使用外链，不需要上传 ZIP。
+
+工作进程应由服务器的进程管理器保持运行，并在部署时单独配置 Docker 权限。`PREVIEW_RUNNER_BIN` 可指定运行器二进制文件路径，默认 `./bin/devhub-preview`。API 与前端不需要 Docker 权限。若只启动 API、没有启动工作进程，任务会停留在「排队中」。
 
 ## 准备
 
@@ -39,7 +43,7 @@ docker build -t my-site:preview ./my-site
 docker build -t my-api:preview ./my-api
 ```
 
-在本仓库 `backend/` 目录执行：
+仍可在本仓库 `backend/` 目录使用命令行方式部署已有镜像：
 
 ```sh
 go run ./cmd/preview deploy --slug my-project \
@@ -71,4 +75,4 @@ go run ./cmd/preview stop --slug my-project
 - 访客收到 404：项目须处于“已发布”且运行状态为 `running`。
 - 访客收到 502：项目服务可能退出；检查 Docker 容器状态和日志，然后重新部署。
 
-接口契约位于 [`../api/openapi.yaml`](../api/openapi.yaml)，可以导入 Apifox。发布与停止是站长本机命令，不是公开 HTTP 接口。
+启动和停止接口仅接受管理员登录令牌，普通用户和公开页面不能提交构建任务。工作进程领取任务后调用本地运行器；因此仅在站长上传并确认的项目上使用此功能。

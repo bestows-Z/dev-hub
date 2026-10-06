@@ -46,6 +46,9 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 		response.Fail(c, response.CodeInvalidParams, "invalid product details")
 		return
 	}
+	if !h.requireCover(c, input.CoverURL, "") {
+		return
+	}
 	status := input.Status
 	if status == "" {
 		status = "draft"
@@ -71,6 +74,9 @@ func (h *Handler) UpdateProduct(c *gin.Context) {
 	var item store.Product
 	if err := h.db.WithContext(c.Request.Context()).First(&item, id).Error; err != nil {
 		h.failure(c, "find product", err)
+		return
+	}
+	if !h.requireCover(c, input.CoverURL, item.CoverURL) {
 		return
 	}
 	status := input.Status
