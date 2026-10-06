@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowRight, Eye, EyeOff, LogOut, Save, UploadCloud, UserRound } from 'lucide-react'
-import { ApiError, api, formatDate } from './api'
+import { ArrowRight, Eye, EyeOff, LogOut, Save, ShoppingBag, UploadCloud, UserRound } from 'lucide-react'
+import { ApiError, api, formatDate, formatPrice, type Page } from './api'
 import {
   clearSession,
   readToken,
@@ -12,6 +12,16 @@ import {
   type LoginResult,
 } from './session'
 import './auth.css'
+
+type MyOrder = {
+  id: number
+  order_no: string
+  product_name: string
+  quantity: number
+  total_cents: number
+  status: string
+  created_at: string
+}
 
 function AuthShell({ children, mode }: { children: ReactNode; mode: 'login' | 'register' }) {
   return (
@@ -88,7 +98,13 @@ export function Login() {
         body: JSON.stringify({ identifier: identifier.trim(), password }),
       })
       saveSession(result)
-      navigate(result.user.role === 1 && params.get('next') === 'admin' ? '/admin' : '/account', {
+      const next = params.get('next')
+      const destination = result.user.role === 1 && next === 'admin'
+        ? '/admin'
+        : next?.startsWith('/') && !next.startsWith('//') && !next.startsWith('/admin')
+          ? next
+          : '/account'
+      navigate(destination, {
         replace: true,
       })
     } catch (failure) {
@@ -252,6 +268,10 @@ export function Account() {
   const [email, setEmail] = useState('')
   const [bio, setBio] = useState('')
   const [websiteURL, setWebsiteURL] = useState('')
+  const [orders, setOrders] = useState<Page<MyOrder> | null>(null)
+  const [ordersPage, setOrdersPage] = useState(1)
+  const [ordersError, setOrdersError] = useState('')
+  const [ordersBusy, setOrdersBusy] = useState<number | null>(null)
   const mounted = useRef(false)
   const draftUserID = useRef<number | null>(null)
   const draftDirty = useRef(false)
@@ -298,6 +318,14 @@ export function Account() {
       active = false
     }
   }, [token, retry])
+  useEffect(() => {
+    if (!token || !user) return
+    let active = true
+    api<Page<MyOrder>>(`/orders?page=${ordersPage}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((result) => { if (active) { setOrders(result); setOrdersError('') } })
+      .catch((failure) => { if (active) setOrdersError(failure instanceof Error ? failure.message : '订单加载失败') })
+    return () => { active = false }
+  }, [token, user?.id, ordersPage])
   if (!token && !error) return <Navigate to="/login" replace />
   function logout() {
     clearSession()
@@ -395,6 +423,20 @@ export function Account() {
       setProfileMessage(failure instanceof Error ? failure.message : '头像移除失败')
     } finally {
       if (mounted.current && readToken() === requestToken) setSaving(false)
+    }
+  }
+  async function cancelOrder(order: MyOrder) {
+    if (!token) return
+    setOrdersBusy(order.id)
+    setOrdersError('')
+    try {
+      await api(`/orders/${order.id}/cancel`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } })
+      const latest = await api<Page<MyOrder>>(`/orders?page=${ordersPage}`, { headers: { Authorization: `Bearer ${token}` } })
+      setOrders(latest)
+    } catch (failure) {
+      setOrdersError(failure instanceof Error ? failure.message : '取消订单失败')
+    } finally {
+      setOrdersBusy(null)
     }
   }
   return (
@@ -533,6 +575,23 @@ export function Account() {
           </aside>
         </div>
       )}
+      {user && !loading && !error && <section className="account-orders" aria-labelledby="account-orders-title">
+        <div className="account-section-head">
+          <span>03 / ORDERS</span>
+          <h2 id="account-orders-title">我的订单</h2>
+          <p>查看订单进度；待付款订单可自行取消，库存会立即退回。</p>
+        </div>
+        {ordersError && <p className="auth-error" role="alert">{ordersError}</p>}
+        {!orders ? <p className="account-orders-empty">正在读取订单…</p> : orders.items.length === 0 ? <p className="account-orders-empty"><ShoppingBag size={19} /> 还没有订单，去小店看看吧。</p> : <div className="account-order-list">
+          {orders.items.map((order) => <div className="account-order" key={order.id}>
+            <div><strong>{order.product_name}</strong><small>订单 {order.order_no} · {formatDate(order.created_at)} · {order.quantity} 件</small></div>
+            <span>{formatPrice(order.total_cents)}</span>
+            <em>{({pending_payment:'待付款',paid:'已付款',delivered:'已交付',cancelled:'已取消'} as Record<string,string>)[order.status] || order.status}</em>
+            {order.status === 'pending_payment' && <button type="button" disabled={ordersBusy === order.id} onClick={() => void cancelOrder(order)}>{ordersBusy === order.id ? '取消中…' : '取消订单'}</button>}
+          </div>)}
+        </div>}
+        {orders && orders.total > 10 && <div className="account-order-pages"><button type="button" disabled={ordersPage <= 1} onClick={() => setOrdersPage((page) => page - 1)}>上一页</button><span>{ordersPage} / {Math.ceil(orders.total / 10)}</span><button type="button" disabled={ordersPage >= Math.ceil(orders.total / 10)} onClick={() => setOrdersPage((page) => page + 1)}>下一页</button></div>}
+      </section>}
       {error && token && (
         <button
           className="account-retry"

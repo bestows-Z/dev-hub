@@ -11,7 +11,7 @@ import {
 import { Link, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { Account, Login, Register } from './Auth'
 import { Comments, LinkApplicationForm } from './Engagement'
-import { authChanged, readUser } from './session'
+import { authChanged, readToken, readUser } from './session'
 import SiteEffects from './SiteEffects'
 
 import {
@@ -855,21 +855,34 @@ function Shop() {
 function ProductDetail() {
   const { slug } = useParams()
   const remote = useRemote<Product>(`/products/${encodeURIComponent(slug || '')}`)
-  const [email, setEmail] = useState('')
+  const [customer, setCustomer] = useState(readUser)
   const [quantity, setQuantity] = useState(1)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
+  const [createdOrder, setCreatedOrder] = useState(false)
+  useEffect(() => {
+    const refresh = () => setCustomer(readUser())
+    window.addEventListener(authChanged, refresh)
+    window.addEventListener('storage', refresh)
+    return () => {
+      window.removeEventListener(authChanged, refresh)
+      window.removeEventListener('storage', refresh)
+    }
+  }, [])
   async function order(event: FormEvent) {
     event.preventDefault()
-    if (!remote.data) return
+    if (!remote.data || !customer || !readToken()) return
     setBusy(true)
     setNotice('')
+    setCreatedOrder(false)
     try {
       const result = await api<{ order_no: string }>('/orders', {
         method: 'POST',
-        body: JSON.stringify({ product_id: remote.data.id, email, quantity }),
+        headers: { Authorization: `Bearer ${readToken()}` },
+        body: JSON.stringify({ product_id: remote.data.id, quantity }),
       })
-      setNotice(`订单 ${result.order_no} 已创建。站长会通过邮件联系你确认付款。`)
+      setNotice(`订单 ${result.order_no} 已创建，当前状态为待付款。`)
+      setCreatedOrder(true)
     } catch (error) {
       setNotice(error instanceof Error ? error.message : '下单失败')
     } finally {
@@ -899,16 +912,8 @@ function ProductDetail() {
               <h1>{remote.data.name}</h1>
               <p>{remote.data.description}</p>
               <strong className="detail-price">{formatPrice(remote.data.price_cents)}</strong>
-              <form className="order-form" onSubmit={order}>
-                <label htmlFor="order-email">接收订单通知的邮箱</label>
-                <input
-                  id="order-email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@example.com"
-                />
+              {customer ? <form className="order-form" onSubmit={order}>
+                <p className="order-account">购买账号：<strong>{customer.username}</strong><br />订单通知将发送至 {customer.email}</p>
                 <label htmlFor="order-quantity">数量</label>
                 <input
                   id="order-quantity"
@@ -929,10 +934,15 @@ function ProductDetail() {
                 </button>
                 {notice && (
                   <p className="form-notice" role="status">
-                    {notice}
+                    {notice} {createdOrder && <Link to="/account">在个人中心查看订单</Link>}
                   </p>
                 )}
-              </form>
+              </form> : <div className="order-signin">
+                <p>登录后才能提交订单。商品价格和库存会在提交时再次确认。</p>
+                <Link className="button button-primary" to={`/login?next=${encodeURIComponent(`/shop/${slug || ''}`)}`}>
+                  登录后继续 <ArrowRight size={18} />
+                </Link>
+              </div>}
               <p className="purchase-note">
                 <Check size={15} /> 订单提交后由站长通过邮件确认付款与交付。
               </p>

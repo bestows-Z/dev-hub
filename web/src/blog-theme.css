@@ -1349,6 +1349,22 @@ body {
 .product-info strong {
   font-size: 18px;
 }
+.order-account,
+.order-signin {
+  margin: 20px 0;
+  padding: 17px 19px;
+  border: 1px solid #dbe8df;
+  border-radius: 9px;
+  background: #f5faf5;
+  color: #526b59;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.order-account strong { color: #285b42; }
+.order-signin .button { margin-top: 12px; }
+:root[data-theme='night'] .order-account,
+:root[data-theme='night'] .order-signin { background: #21352b; border-color: #42674d; color: #c4d9c8; }
+:root[data-theme='night'] .order-account strong { color: #ebf5e9; }
 .catalog-toolbar {
   display: flex;
   align-items: center;

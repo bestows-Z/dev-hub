@@ -222,6 +222,36 @@
   gap: 18px;
   margin-top: 20px;
 }
+.account-orders {
+  margin-top: 22px;
+  padding: 30px;
+  border: 1px solid #e1e9e2;
+  border-radius: 13px;
+  background: #fff;
+}
+.account-orders-empty { display: flex; align-items: center; gap: 9px; color: #687c6e; font-size: 13px; }
+.account-order-list { display: grid; gap: 0; }
+.account-order { display: flex; align-items: center; gap: 20px; padding: 17px 0; border-top: 1px solid #e9eee9; }
+.account-order > div { flex: 1; min-width: 0; }
+.account-order strong { display: block; color: #2f493b; font-size: 14px; }
+.account-order small { display: block; margin-top: 5px; color: #7b8e80; font-size: 11px; overflow-wrap: anywhere; }
+.account-order > span { color: #2d6650; font-weight: 750; }
+.account-order em { min-width: 58px; color: #65796b; font-size: 12px; font-style: normal; }
+.account-order button,
+.account-order-pages button { border: 1px solid #d4e4d7; border-radius: 6px; background: #f7fbf7; color: #2f7652; padding: 7px 10px; font-size: 12px; cursor: pointer; }
+.account-order button:disabled,
+.account-order-pages button:disabled { opacity: .5; cursor: default; }
+.account-order-pages { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 16px; color: #6b806f; font-size: 12px; }
+:root[data-theme='night'] .account-orders { background: #1f2e28; border-color: #3f5647; }
+:root[data-theme='night'] .account-order { border-color: #3f5647; }
+:root[data-theme='night'] .account-order strong { color: #e7f0e8; }
+:root[data-theme='night'] .account-order small,
+:root[data-theme='night'] .account-orders-empty,
+:root[data-theme='night'] .account-order em { color: #b5c9b7; }
+:root[data-theme='night'] .account-order > span { color: #a5d6b4; }
+:root[data-theme='night'] .account-order button,
+:root[data-theme='night'] .account-order-pages button { background: #263d2f; border-color: #4b6853; color: #c5e2c9; }
+@media (max-width: 760px) { .account-orders { padding: 22px; } .account-order { flex-wrap: wrap; gap: 9px 16px; } .account-order > div { flex-basis: 100%; } }
 .account-edit,
 .account-avatar-editor {
   padding: 30px;

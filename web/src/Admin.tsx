@@ -960,7 +960,7 @@ export default function Admin() {
                   <tr key={item.id}>
                     <td className="admin-table-title" data-label="内容">
                       {kind === 'gallery' && item.status === 'published' && Boolean(item.image_url) && <img className="admin-gallery-thumb" src={String(item.image_url)} alt="" />}
-                      <strong>{String(item.title || item.name || item.article_title || item.username || item.order_no || `#${item.id}`)}</strong>
+                      <strong>{String(kind === 'orders' ? `${item.username || '历史订单'} · ${item.order_no || `#${item.id}`}` : item.title || item.name || item.article_title || item.username || `#${item.id}`)}</strong>
                       <small>{String(kind === 'comments' ? item.body || '' : kind === 'orders' ? formatPrice(Number(item.total_cents || 0)) : item.description || item.excerpt || '')}</small>
                     </td>
                     <td data-label="标识 / 联系" className="admin-table-identifier">{String(item.slug || item.location || item.url || item.email || item.username || `#${item.id}`)}</td>

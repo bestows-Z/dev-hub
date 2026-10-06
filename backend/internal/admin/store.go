@@ -114,24 +114,29 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 
 func (h *Handler) ListOrders(c *gin.Context) {
 	p, size := page(c)
-	q := h.db.WithContext(c.Request.Context()).Model(&store.Order{})
+	q := h.db.WithContext(c.Request.Context()).Model(&store.Order{}).Joins("LEFT JOIN users ON users.id = orders.user_id")
 	if pattern := searchPattern(c); pattern != "" {
-		q = q.Where("order_no ILIKE ? OR email ILIKE ?", pattern, pattern)
+		q = q.Where("orders.order_no ILIKE ? OR orders.email ILIKE ? OR users.username ILIKE ?", pattern, pattern, pattern)
 	}
 	if status := c.Query("status"); status != "" {
-		q = q.Where("status = ?", status)
+		q = q.Where("orders.status = ?", status)
 	}
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
 		h.failure(c, "count orders", err)
 		return
 	}
-	items := make([]store.Order, 0)
-	if err := q.Order("created_at DESC,id DESC").Limit(size).Offset((p - 1) * size).Find(&items).Error; err != nil {
+	items := make([]orderRow, 0)
+	if err := q.Select("orders.*, users.username").Order("orders.created_at DESC,orders.id DESC").Limit(size).Offset((p - 1) * size).Scan(&items).Error; err != nil {
 		h.failure(c, "list orders", err)
 		return
 	}
 	response.Success(c, gin.H{"items": items, "total": total, "page": p, "page_size": size})
+}
+
+type orderRow struct {
+	store.Order
+	Username string `json:"username"`
 }
 
 type orderStatusInput struct {

@@ -18,6 +18,7 @@ type Product struct {
 type Order struct {
 	ID         uint64    `json:"id" gorm:"primaryKey"`
 	OrderNo    string    `json:"order_no"`
+	UserID     *uint64   `json:"user_id"`
 	ProductID  uint64    `json:"product_id"`
 	Email      string    `json:"email"`
 	Quantity   int       `json:"quantity"`
@@ -29,6 +30,7 @@ type Order struct {
 
 type CreateOrderRequest struct {
 	ProductID uint64 `json:"product_id" binding:"required"`
-	Email     string `json:"email" binding:"required,email,max=255"`
 	Quantity  int    `json:"quantity" binding:"required,min=1,max=10"`
+	UserID    uint64 `json:"-"`
+	Email     string `json:"-"`
 }
