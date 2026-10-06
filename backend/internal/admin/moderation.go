@@ -28,13 +28,20 @@ func (h *Handler) ListComments(c *gin.Context) {
 		return
 	}
 	q := h.db.WithContext(c.Request.Context()).Model(&engagement.Comment{}).Where("article_comments.status = ?", status)
+	if pattern := searchPattern(c); pattern != "" {
+		q = q.Joins("JOIN users ON users.id = article_comments.user_id").Joins("JOIN articles ON articles.id = article_comments.article_id").Where("article_comments.body ILIKE ? OR users.username ILIKE ? OR articles.title ILIKE ?", pattern, pattern, pattern)
+	}
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
 		h.failure(c, "count comments for review", err)
 		return
 	}
 	items := make([]commentReviewRow, 0)
-	if err := q.Select("article_comments.*, users.username, articles.title AS article_title").Joins("JOIN users ON users.id = article_comments.user_id").Joins("JOIN articles ON articles.id = article_comments.article_id").Order("article_comments.created_at ASC, article_comments.id ASC").Limit(size).Offset((p - 1) * size).Scan(&items).Error; err != nil {
+	listQuery := q.Select("article_comments.*, users.username, articles.title AS article_title")
+	if searchPattern(c) == "" {
+		listQuery = listQuery.Joins("JOIN users ON users.id = article_comments.user_id").Joins("JOIN articles ON articles.id = article_comments.article_id")
+	}
+	if err := listQuery.Order("article_comments.created_at ASC, article_comments.id ASC").Limit(size).Offset((p - 1) * size).Scan(&items).Error; err != nil {
 		h.failure(c, "list comments for review", err)
 		return
 	}
@@ -78,13 +85,20 @@ func (h *Handler) ListLinkApplications(c *gin.Context) {
 		return
 	}
 	q := h.db.WithContext(c.Request.Context()).Model(&engagement.LinkApplication{}).Where("link_applications.status = ?", status)
+	if pattern := searchPattern(c); pattern != "" {
+		q = q.Joins("JOIN users ON users.id = link_applications.user_id").Where("link_applications.name ILIKE ? OR link_applications.url ILIKE ? OR users.username ILIKE ?", pattern, pattern, pattern)
+	}
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
 		h.failure(c, "count link applications", err)
 		return
 	}
 	items := make([]linkApplicationReviewRow, 0)
-	if err := q.Select("link_applications.*, users.username").Joins("JOIN users ON users.id = link_applications.user_id").Order("link_applications.created_at ASC, link_applications.id ASC").Limit(size).Offset((p - 1) * size).Scan(&items).Error; err != nil {
+	listQuery := q.Select("link_applications.*, users.username")
+	if searchPattern(c) == "" {
+		listQuery = listQuery.Joins("JOIN users ON users.id = link_applications.user_id")
+	}
+	if err := listQuery.Order("link_applications.created_at ASC, link_applications.id ASC").Limit(size).Offset((p - 1) * size).Scan(&items).Error; err != nil {
 		h.failure(c, "list link applications", err)
 		return
 	}

@@ -74,8 +74,8 @@ const managedKinds: ManagedKind[] = [
   'applications',
 ]
 const pageSize = 20
-function listKey(kind: Kind, page: number, reviewStatus: string, token: string) {
-  return `${kind}:${page}:${reviewStatus}:${token}`
+function listKey(kind: Kind, page: number, reviewStatus: string, search: string, token: string) {
+  return `${kind}:${page}:${reviewStatus}:${search}:${token}`
 }
 const fields: Record<EditableKind, Field[]> = {
   articles: [
@@ -180,6 +180,7 @@ export default function Admin() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('')
   const [reviewStatus, setReviewStatus] = useState('pending')
   const [stats, setStats] = useState<Partial<Record<ManagedKind, number>>>({})
   const [previewMarkdown, setPreviewMarkdown] = useState(false)
@@ -189,8 +190,8 @@ export default function Admin() {
   const [authorized, setAuthorized] = useState(false)
   const [authRetry, setAuthRetry] = useState(0)
   const requestSequence = useRef(0)
-  const currentListKey = useRef(listKey(kind, page, reviewStatus, token))
-  currentListKey.current = listKey(kind, page, reviewStatus, token)
+  const currentListKey = useRef(listKey(kind, page, reviewStatus, search, token))
+  currentListKey.current = listKey(kind, page, reviewStatus, search, token)
 
   const request = useCallback(
     <T,>(path: string, options?: RequestInit) =>
@@ -202,7 +203,7 @@ export default function Admin() {
   )
   const refresh = useCallback(async () => {
     if (!token || !authorized || kind === 'overview') return
-    const queryKey = listKey(kind, page, reviewStatus, token)
+    const queryKey = listKey(kind, page, reviewStatus, search, token)
     if (queryKey !== currentListKey.current) return
     const sequence = ++requestSequence.current
     try {
@@ -210,13 +211,13 @@ export default function Admin() {
       const statusQuery =
         kind === 'comments' || kind === 'applications' ? `&status=${reviewStatus}` : ''
       const data = await request<Page<Item> | Item[]>(
-        `/admin/${path}?page_size=${pageSize}&page=${page}${statusQuery}`,
+        `/admin/${path}?page_size=${pageSize}&page=${page}${statusQuery}&q=${encodeURIComponent(search)}`,
       )
       if (sequence === requestSequence.current && queryKey === currentListKey.current) {
         const nextTotal = Array.isArray(data) ? data.length : data.total
         const lastPage = Math.max(1, Math.ceil(nextTotal / pageSize))
         if (page > lastPage) {
-          currentListKey.current = listKey(kind, lastPage, reviewStatus, token)
+          currentListKey.current = listKey(kind, lastPage, reviewStatus, search, token)
           requestSequence.current++
           setItems([])
           setTotal(nextTotal)
@@ -232,7 +233,7 @@ export default function Admin() {
       if (sequence === requestSequence.current && queryKey === currentListKey.current)
         setMessage(error instanceof Error ? error.message : '列表加载失败')
     }
-  }, [token, authorized, kind, page, reviewStatus, request])
+  }, [token, authorized, kind, page, reviewStatus, search, request])
   const refreshLatest = useRef(refresh)
   refreshLatest.current = refresh
 
@@ -424,11 +425,12 @@ export default function Admin() {
 
   function selectKind(next: Kind) {
     if (kind === next) return
-    currentListKey.current = listKey(next, 1, 'pending', token)
+    currentListKey.current = listKey(next, 1, 'pending', '', token)
     requestSequence.current++
     setKind(next)
     setPage(1)
     setSearch('')
+    setSearchInput('')
     setReviewStatus('pending')
     setItems([])
     setTotal(0)
@@ -438,25 +440,31 @@ export default function Admin() {
   }
 
   function changePage(next: number) {
-    currentListKey.current = listKey(kind, next, reviewStatus, token)
+    currentListKey.current = listKey(kind, next, reviewStatus, search, token)
     requestSequence.current++
     setItems([])
     setPage(next)
   }
 
   function changeReviewStatus(next: string) {
-    currentListKey.current = listKey(kind, 1, next, token)
+    currentListKey.current = listKey(kind, 1, next, search, token)
     requestSequence.current++
     setItems([])
     setPage(1)
     setReviewStatus(next)
   }
 
-  const visibleItems = items.filter((item) =>
-    `${item.title || ''} ${item.name || ''} ${item.username || ''} ${item.slug || ''} ${item.url || ''} ${item.order_no || ''}`
-      .toLowerCase()
-      .includes(search.trim().toLowerCase()),
-  )
+  function submitSearch(event: FormEvent) {
+    event.preventDefault()
+    const next = searchInput.trim()
+    currentListKey.current = listKey(kind, 1, reviewStatus, next, token)
+    requestSequence.current++
+    setItems([])
+    setPage(1)
+    setSearch(next)
+  }
+
+  const visibleItems = items
   const activeTab = tabs.find((tab) => tab.kind === kind)
   const adminUser = readUser()
 
@@ -741,15 +749,18 @@ export default function Admin() {
               </div>
             </div>
             <div className="admin-filters">
+              <form onSubmit={submitSearch}>
               <label>
                 <Search size={17} />
                 <input
-                  aria-label="搜索当前页"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="搜索当前页的标题、名称或编号"
+                  aria-label="搜索全部记录"
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  placeholder="搜索全部记录"
                 />
               </label>
+              <button type="submit">搜索</button>
+              </form>
               {(kind === 'comments' || kind === 'applications') && (
                 <select
                   aria-label="审核状态"
@@ -863,45 +874,31 @@ export default function Admin() {
               {visibleItems.length === 0 ? (
                 <div className="admin-empty">
                   <Inbox size={28} />
-                  <strong>{search ? '当前页没有匹配内容' : '这里还没有记录'}</strong>
+                  <strong>{search ? '没有匹配内容' : '这里还没有记录'}</strong>
                   <span>
-                    {search ? '试试其他关键词，或切换页面。' : '你发布的内容会出现在这里。'}
+                    {search ? '换个关键词再试试。' : '你发布的内容会出现在这里。'}
                   </span>
                 </div>
               ) : (
-                visibleItems.map((item) => (
-                  <div className="admin-row" key={item.id}>
-                    <div>
-                      <strong>
-                        {String(
-                          item.title ||
-                            item.name ||
-                            item.article_title ||
-                            item.username ||
-                            item.order_no ||
-                            `#${item.id}`,
-                        )}
-                      </strong>
-                      <span>
-                        {kind === 'comments'
-                          ? `${String(item.username)} · ${String(item.body)}`
-                          : kind === 'applications'
-                            ? `${String(item.username)} · ${String(item.url)}`
-                            : kind === 'orders'
-                              ? `${formatPrice(Number(item.total_cents || 0))} · ${String(item.email)} · ${String(item.status)}`
-                              : `${String(item.slug || item.url || '')} · ${kind === 'links' ? (item.enabled ? '公开' : '隐藏') : item.status === 'published' ? '公开' : '草稿'}${kind === 'projects' && item.runtime_status === 'running' ? ' · 前后端运行中' : ''}`}
-                        {kind === 'orders' && item.created_at
-                          ? ` · ${formatDate(String(item.created_at))}`
-                          : ''}
+                <div className="admin-table-scroll">
+                  <table className="admin-table">
+                    <thead><tr><th scope="col">内容</th><th scope="col">标识 / 联系</th><th scope="col">状态</th><th scope="col">时间</th><th scope="col">操作</th></tr></thead>
+                    <tbody>
+                {visibleItems.map((item) => (
+                  <tr key={item.id}>
+                    <td className="admin-table-title" data-label="内容">
+                      <strong>{String(item.title || item.name || item.article_title || item.username || item.order_no || `#${item.id}`)}</strong>
+                      <small>{String(kind === 'comments' ? item.body || '' : kind === 'orders' ? formatPrice(Number(item.total_cents || 0)) : item.description || item.excerpt || '')}</small>
+                    </td>
+                    <td data-label="标识 / 联系" className="admin-table-identifier">{String(item.slug || item.url || item.email || item.username || `#${item.id}`)}</td>
+                    <td data-label="状态">
+                      <span className={`admin-status ${item.status === 'published' || item.status === 'approved' || item.enabled === true ? 'is-positive' : ''}`}>
+                        {kind === 'links' ? (item.enabled ? '公开' : '隐藏') : ({ published: '公开', draft: '草稿', pending: '待审核', approved: '已通过', rejected: '已驳回', pending_payment: '待付款', paid: '已付款', delivered: '已交付', cancelled: '已取消' } as Record<string, string>)[String(item.status)] || String(item.status || '—')}
                       </span>
-                      {kind === 'applications' && (
-                        <span>
-                          介绍：{String(item.description || '未填写')} · 头像：
-                          {String(item.avatar_url || '未填写')}
-                        </span>
-                      )}
-                    </div>
-                    <div className="admin-row-actions">
+                      {kind === 'projects' && item.runtime_status === 'running' && <small className="admin-runtime-status">前后端运行中</small>}
+                    </td>
+                    <td data-label="时间" className="admin-table-date">{item.created_at ? formatDate(String(item.created_at)) : '—'}</td>
+                    <td data-label="操作"><div className="admin-row-actions">
                       {(kind === 'comments' || kind === 'applications') &&
                       reviewStatus === 'pending' ? (
                         <>
@@ -1003,9 +1000,12 @@ export default function Admin() {
                           </button>
                         </>
                       ) : null}
-                    </div>
-                  </div>
-                ))
+                    </div></td>
+                  </tr>
+                ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
             {(total > pageSize || page > 1) && (

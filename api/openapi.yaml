@@ -96,6 +96,7 @@ paths:
       operationId: adminListComments
       security: [{ BearerAuth: [] }]
       parameters:
+        - { $ref: "#/components/parameters/AdminSearch" }
         - { in: query, name: status, schema: { type: string, enum: [pending, approved, rejected], default: pending } }
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
         - { in: query, name: page_size, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
@@ -127,6 +128,7 @@ paths:
       operationId: adminListLinkApplications
       security: [{ BearerAuth: [] }]
       parameters:
+        - { $ref: "#/components/parameters/AdminSearch" }
         - { in: query, name: status, schema: { type: string, enum: [pending, approved, rejected], default: pending } }
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
         - { in: query, name: page_size, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
@@ -159,6 +161,7 @@ paths:
       operationId: adminListArticles
       security: [{ BearerAuth: [] }]
       parameters:
+        - { $ref: "#/components/parameters/AdminSearch" }
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
         - { in: query, name: page_size, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
       responses:
@@ -197,8 +200,12 @@ paths:
       summary: 管理员读取全部友链
       operationId: adminListLinks
       security: [{ BearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/AdminSearch" }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: page_size, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
       responses:
-        "200": { $ref: "#/components/responses/AdminSuccess" }
+        "200": { $ref: "#/components/responses/AdminPageSuccess" }
     post:
       tags: [Admin]
       summary: 创建友链
@@ -233,6 +240,10 @@ paths:
       summary: 管理员读取全部商品
       operationId: adminListProducts
       security: [{ BearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/AdminSearch" }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: page_size, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
       responses:
         "200": { $ref: "#/components/responses/AdminPageSuccess" }
     post:
@@ -269,6 +280,10 @@ paths:
       summary: 管理员读取全部项目
       operationId: adminListProjects
       security: [{ BearerAuth: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/AdminSearch" }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: page_size, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
       responses:
         "200": { $ref: "#/components/responses/AdminPageSuccess" }
     post:
@@ -468,7 +483,10 @@ paths:
       operationId: adminListOrders
       security: [{ BearerAuth: [] }]
       parameters:
+        - { $ref: "#/components/parameters/AdminSearch" }
         - { in: query, name: status, schema: { type: string, enum: [pending_payment, paid, delivered, cancelled] } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: page_size, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
       responses:
         "200": { $ref: "#/components/responses/AdminPageSuccess" }
 
@@ -1144,6 +1162,11 @@ paths:
 components:
 
   parameters:
+    AdminSearch:
+      in: query
+      name: q
+      description: 跨全部记录搜索标题、名称、标识、评论内容或联系信息，最多读取 100 个字符
+      schema: { type: string, maxLength: 100 }
     AdminID:
       in: path
       name: id

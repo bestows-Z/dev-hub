@@ -24,6 +24,9 @@ type productInput struct {
 func (h *Handler) ListProducts(c *gin.Context) {
 	p, size := page(c)
 	q := h.db.WithContext(c.Request.Context()).Model(&store.Product{})
+	if pattern := searchPattern(c); pattern != "" {
+		q = q.Where("name ILIKE ? OR slug ILIKE ? OR description ILIKE ?", pattern, pattern, pattern)
+	}
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
 		h.failure(c, "count admin products", err)
@@ -112,6 +115,9 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 func (h *Handler) ListOrders(c *gin.Context) {
 	p, size := page(c)
 	q := h.db.WithContext(c.Request.Context()).Model(&store.Order{})
+	if pattern := searchPattern(c); pattern != "" {
+		q = q.Where("order_no ILIKE ? OR email ILIKE ?", pattern, pattern)
+	}
 	if status := c.Query("status"); status != "" {
 		q = q.Where("status = ?", status)
 	}

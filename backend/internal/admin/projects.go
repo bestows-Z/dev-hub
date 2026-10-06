@@ -37,6 +37,9 @@ func validProjectInput(input projectInput) bool {
 func (h *Handler) ListProjects(c *gin.Context) {
 	p, size := page(c)
 	q := h.db.WithContext(c.Request.Context()).Model(&project.Project{})
+	if pattern := searchPattern(c); pattern != "" {
+		q = q.Where("title ILIKE ? OR slug ILIKE ? OR description ILIKE ?", pattern, pattern, pattern)
+	}
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
 		h.failure(c, "count admin projects", err)

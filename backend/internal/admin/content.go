@@ -23,6 +23,9 @@ type articleInput struct {
 func (h *Handler) ListArticles(c *gin.Context) {
 	p, size := page(c)
 	q := h.db.WithContext(c.Request.Context()).Model(&content.Article{})
+	if pattern := searchPattern(c); pattern != "" {
+		q = q.Where("title ILIKE ? OR slug ILIKE ? OR excerpt ILIKE ?", pattern, pattern, pattern)
+	}
 	var total int64
 	if err := q.Count(&total).Error; err != nil {
 		h.failure(c, "count admin articles", err)
@@ -138,12 +141,22 @@ func validWebURL(value string) bool {
 }
 
 func (h *Handler) ListLinks(c *gin.Context) {
+	p, size := page(c)
+	q := h.db.WithContext(c.Request.Context()).Model(&content.FriendLink{})
+	if pattern := searchPattern(c); pattern != "" {
+		q = q.Where("name ILIKE ? OR url ILIKE ?", pattern, pattern)
+	}
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		h.failure(c, "count admin links", err)
+		return
+	}
 	items := make([]content.FriendLink, 0)
-	if err := h.db.WithContext(c.Request.Context()).Order("sort_order ASC,id ASC").Find(&items).Error; err != nil {
+	if err := q.Order("sort_order ASC,id ASC").Limit(size).Offset((p - 1) * size).Find(&items).Error; err != nil {
 		h.failure(c, "list admin links", err)
 		return
 	}
-	response.Success(c, items)
+	response.Success(c, gin.H{"items": items, "total": total, "page": p, "page_size": size})
 }
 
 func (h *Handler) CreateLink(c *gin.Context) {
