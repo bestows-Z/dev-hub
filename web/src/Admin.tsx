@@ -444,7 +444,9 @@ export default function Admin() {
       <div className="admin-login-wrap">
         <div className="admin-login-card">
           <div className="admin-login-art">
-            <span className="admin-login-art-mark">✦</span>
+            <span className="admin-login-art-mark">
+              <img src="/logo.svg" alt="" />
+            </span>
             <small>DEVHUB / STUDIO</small>
             <div>
               <span>写作 · 作品 · 小店</span>
@@ -510,7 +512,9 @@ export default function Admin() {
     <div className="admin-shell">
       <aside className="admin-sidebar" aria-label="管理导航">
         <div className="admin-sidebar-brand">
-          <span className="admin-sidebar-mark">✦</span>
+          <span className="admin-sidebar-mark">
+            <img src="/logo.svg" alt="" />
+          </span>
           <span>
             <strong>DevHub</strong>
             <small>CONTROL ROOM</small>

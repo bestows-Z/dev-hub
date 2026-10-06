@@ -128,7 +128,7 @@ function Layout({ children }: { children: ReactNode }) {
       <header className={location.pathname === '/' ? 'site-header home-header' : 'site-header'}>
         <div className="header-inner container">
           <Link className="brand" to="/" aria-label="DevHub 首页">
-            <span className="brand-mark">D</span>
+            <img className="brand-mark" src="/logo.svg" alt="" />
             <span>DevHub</span>
           </Link>
           <nav className={menuOpen ? 'primary-nav open' : 'primary-nav'} aria-label="主导航">
@@ -170,7 +170,7 @@ function Layout({ children }: { children: ReactNode }) {
         <div className="container footer-inner">
           <div>
             <Link className="brand footer-brand" to="/">
-              <span className="brand-mark">D</span>
+              <img className="brand-mark" src="/logo.svg" alt="" />
               <span>DevHub</span>
             </Link>
             <p>一个人的博客，记录正在发生的事。</p>
@@ -394,7 +394,9 @@ function Home() {
         <aside className="home-sidebar" aria-label="关于本站">
           <div className="sidebar-card profile-card">
             <div className="profile-cover" />
-            <div className="profile-avatar">D</div>
+            <div className="profile-avatar">
+              <img src="/logo.svg" alt="DevHub" />
+            </div>
             <h2>关于 DevHub</h2>
             <p>写代码，也记生活。把折腾过的项目和读过、想过的东西放在这里。</p>
             <div className="profile-stats">

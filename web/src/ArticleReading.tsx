@@ -89,7 +89,9 @@ export default function ArticleReading({ article }: { article: Article }) {
         <h1>{article.title}</h1>
         {article.excerpt && <p>{article.excerpt}</p>}
         <div className="reading-meta">
-          <span className="reading-author-avatar">D</span>
+          <span className="reading-author-avatar">
+            <img src="/logo.svg" alt="" />
+          </span>
           <strong>DevHub</strong>
           <i /> <time>{formatDate(article.published_at)}</time>
           <i />{' '}

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">DevHub 书页与日光</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#2b6758"/>
+      <stop offset="1" stop-color="#194e49"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bg)"/>
+  <circle cx="46" cy="16" r="5" fill="#f3cb80"/>
+  <path d="M11 20c8-3 15-1 21 4v27c-6-5-13-7-21-4V20Z" fill="#e6f0db"/>
+  <path d="M53 20c-8-3-15-1-21 4v27c6-5 13-7 21-4V20Z" fill="#c7e1c8"/>
+  <path d="M32 24v27M16 29c4-1 8 0 11 2M37 31c3-2 7-3 11-2" fill="none" stroke="#5e9d86" stroke-linecap="round" stroke-width="2"/>
+  <path d="M9 51c9-3 16-1 23 4 7-5 14-7 23-4" fill="none" stroke="#f4cf8d" stroke-linecap="round" stroke-width="2.5"/>
+</svg>
