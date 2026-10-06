@@ -13,6 +13,7 @@ type Response struct {
 	Bio         string `json:"bio"`
 	WebsiteURL  string `json:"website_url"`
 	AvatarURL   string `json:"avatar_url"`
+	IPRegion    string `json:"ip_region"`
 
 	Role   Role   `json:"role"`
 	Status Status `json:"status"`
@@ -33,6 +34,7 @@ func ToResponse(u *User) Response {
 		Bio:         u.Bio,
 		WebsiteURL:  u.WebsiteURL,
 		AvatarURL:   avatarURL,
+		IPRegion:    u.LastIPRegion,
 		Role:        u.Role,
 		Status:      u.Status,
 		CreatedAt:   u.CreatedAt,

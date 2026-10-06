@@ -6,6 +6,7 @@ export type AuthUser = {
   bio: string
   website_url: string
   avatar_url: string
+  ip_region: string
   role: number
   status: number
   created_at: string

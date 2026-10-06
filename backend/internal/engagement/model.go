@@ -8,6 +8,7 @@ type Comment struct {
 	UserID     uint64     `json:"user_id"`
 	ReplyToID  *uint64    `json:"reply_to_id"`
 	Body       string     `json:"body"`
+	IPRegion   string     `json:"ip_region"`
 	Status     string     `json:"status"`
 	CreatedAt  time.Time  `json:"created_at"`
 	ReviewedAt *time.Time `json:"reviewed_at"`
@@ -18,6 +19,7 @@ func (Comment) TableName() string { return "article_comments" }
 type CommentView struct {
 	ID              uint64    `json:"id"`
 	Body            string    `json:"body"`
+	IPRegion        string    `json:"ip_region"`
 	Username        string    `json:"username"`
 	ReplyToID       *uint64   `json:"reply_to_id"`
 	ReplyToUsername string    `json:"reply_to_username"`

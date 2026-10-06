@@ -10,6 +10,7 @@ import (
 
 	"github.com/bestows-Z/dev-hub/backend/internal/auth"
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
+	"github.com/bestows-Z/dev-hub/backend/internal/geoip"
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
 	"github.com/bestows-Z/dev-hub/backend/internal/user"
 	"github.com/gin-gonic/gin"
@@ -22,11 +23,14 @@ var errCommentTooSoon = errors.New("comment too soon")
 var errApplicationPending = errors.New("application pending")
 
 type Handler struct {
-	db     *gorm.DB
-	logger *zap.Logger
+	db      *gorm.DB
+	logger  *zap.Logger
+	regions *geoip.Resolver
 }
 
 func NewHandler(db *gorm.DB, logger *zap.Logger) *Handler { return &Handler{db: db, logger: logger} }
+
+func (h *Handler) SetRegionResolver(regions *geoip.Resolver) { h.regions = regions }
 
 func lockUser(tx *gorm.DB, id uint64) error {
 	var locked user.User
@@ -67,7 +71,7 @@ func (h *Handler) ListComments(c *gin.Context) {
 		return
 	}
 	items := make([]CommentView, 0)
-	if err := query.Select("article_comments.id, article_comments.body, users.username, article_comments.reply_to_id, reply_users.username AS reply_to_username, article_comments.created_at").
+	if err := query.Select("article_comments.id, article_comments.body, article_comments.ip_region, users.username, article_comments.reply_to_id, reply_users.username AS reply_to_username, article_comments.created_at").
 		Joins("JOIN users ON users.id = article_comments.user_id").
 		Joins("LEFT JOIN article_comments reply_target ON reply_target.id = article_comments.reply_to_id").
 		Joins("LEFT JOIN users reply_users ON reply_users.id = reply_target.user_id").
@@ -103,6 +107,9 @@ func (h *Handler) CreateComment(c *gin.Context) {
 	}
 	u := auth.CurrentUser(c)
 	item := Comment{ArticleID: article.ID, UserID: u.ID, ReplyToID: input.ReplyToID, Body: input.Body, Status: "pending"}
+	if h.regions != nil {
+		item.IPRegion = h.regions.Region(c.ClientIP())
+	}
 	err := h.db.WithContext(c.Request.Context()).Transaction(func(tx *gorm.DB) error {
 		if err := lockUser(tx, u.ID); err != nil {
 			return err

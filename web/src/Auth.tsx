@@ -488,6 +488,7 @@ export function Account() {
             <div className="account-meta">
               <span>{user.role === 1 ? '站点管理员' : user.role === 3 ? '本站作者' : '读者'}</span>
               <span>加入于 {formatDate(user.created_at)}</span>
+              {user.ip_region && <span>IP 属地 · {user.ip_region}</span>}
             </div>
           )}
           {user?.website_url && <a className="account-website" href={user.website_url} target="_blank" rel="noopener noreferrer">我的网站 <ArrowRight size={15} /></a>}

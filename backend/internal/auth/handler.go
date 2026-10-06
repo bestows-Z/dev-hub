@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/bestows-Z/dev-hub/backend/internal/geoip"
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
 	"github.com/bestows-Z/dev-hub/backend/internal/storage"
 	"github.com/bestows-Z/dev-hub/backend/internal/user"
@@ -15,12 +16,15 @@ import (
 )
 
 type Handler struct {
-	users  user.Repository
-	tokens *Tokens
-	logger *zap.Logger
-	db     *gorm.DB
-	store  *storage.Store
+	users   user.Repository
+	tokens  *Tokens
+	logger  *zap.Logger
+	db      *gorm.DB
+	store   *storage.Store
+	regions *geoip.Resolver
 }
+
+func (h *Handler) SetRegionResolver(regions *geoip.Resolver) { h.regions = regions }
 
 func NewHandler(users user.Repository, tokens *Tokens, db *gorm.DB, store *storage.Store, logger *zap.Logger) *Handler {
 	return &Handler{users: users, tokens: tokens, db: db, store: store, logger: logger}
@@ -50,6 +54,14 @@ func (h *Handler) Login(c *gin.Context) {
 	if u.Status != user.StatusNormal || bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(req.Password)) != nil {
 		response.Fail(c, 40101, "invalid credentials")
 		return
+	}
+	if h.regions != nil {
+		region := h.regions.Region(c.ClientIP())
+		if err := h.db.WithContext(c.Request.Context()).Model(u).Update("last_ip_region", region).Error; err != nil {
+			h.logger.Warn("update login IP region", zap.Error(err))
+		} else {
+			u.LastIPRegion = region
+		}
 	}
 	token, err := h.tokens.Issue(u.ID)
 	if err != nil {

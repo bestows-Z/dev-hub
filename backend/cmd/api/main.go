@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
 	"github.com/bestows-Z/dev-hub/backend/internal/engagement"
 	"github.com/bestows-Z/dev-hub/backend/internal/gallery"
+	"github.com/bestows-Z/dev-hub/backend/internal/geoip"
 	httprouter "github.com/bestows-Z/dev-hub/backend/internal/http/router"
 	"github.com/bestows-Z/dev-hub/backend/internal/media"
 	pg "github.com/bestows-Z/dev-hub/backend/internal/platform/postgres"
@@ -45,6 +47,11 @@ func main() {
 			zap.Error(err),
 		)
 	}
+	regions, err := geoip.Open(cfg.GeoIP.DBPath)
+	if err != nil {
+		logger.Fatal("load IP region database", zap.Error(err))
+	}
+	defer regions.Close()
 	postgresClient, err := pg.New(
 		pg.Config{
 			DSN:          cfg.Postgres.DSN(),
@@ -100,6 +107,7 @@ func main() {
 	}
 	bucketCancel()
 	authHandler := auth.NewHandler(userRepository, auth.NewTokens(cfg.Auth.JWTSecret), postgresClient.DB, objectStore, logger)
+	authHandler.SetRegionResolver(regions)
 	previewHandler := project.NewPreviewHandler(postgresClient.DB, objectStore, logger)
 	galleryHandler := gallery.NewHandler(postgresClient.DB, objectStore, logger)
 	runtimeHandler := project.NewRuntimeHandler(postgresClient.DB, logger)
@@ -108,6 +116,7 @@ func main() {
 	assistantHandler := assistant.NewHandler(postgresClient.DB, cfg.Assistant, logger)
 	assistantHandler.SetRateLimiter(assistant.NewRedisRateLimiter(redisClient))
 	engagementHandler := engagement.NewHandler(postgresClient.DB, logger)
+	engagementHandler.SetRegionResolver(regions)
 	analyticsCtx, stopAnalytics := context.WithCancel(context.Background())
 	defer stopAnalytics()
 	var analyticsStore *analytics.Store
@@ -139,6 +148,15 @@ func main() {
 	analyticsHandler := analytics.NewHandler(analyticsStore, logger)
 	mediaHandler := media.NewHandler(postgresClient.DB, objectStore, logger)
 	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler, previewHandler, runtimeHandler, galleryHandler, mediaHandler, adminHandler, assistantHandler, engagementHandler, analyticsHandler, analyticsBroker)
+	var trustedProxies []string
+	for _, entry := range strings.Split(cfg.HTTP.TrustedProxies, ",") {
+		if value := strings.TrimSpace(entry); value != "" {
+			trustedProxies = append(trustedProxies, value)
+		}
+	}
+	if err := router.SetTrustedProxies(trustedProxies); err != nil {
+		logger.Fatal("invalid HTTP_TRUSTED_PROXIES", zap.Error(err))
+	}
 	address := fmt.Sprintf(
 		"%s:%d",
 		cfg.HTTP.Host,

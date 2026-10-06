@@ -5,7 +5,7 @@ import { ApiError, api, formatDate, type Page } from './api'
 import { authChanged, clearSession, readToken, readUser, type AuthUser } from './session'
 import './engagement.css'
 
-type Comment = { id: number; body: string; username: string; reply_to_id: number | null; reply_to_username: string; created_at: string }
+type Comment = { id: number; body: string; username: string; reply_to_id: number | null; reply_to_username: string; ip_region: string; created_at: string }
 
 function useVisitor() {
   const [user, setUser] = useState<AuthUser | null>(readUser)
@@ -128,6 +128,7 @@ export function Comments({ slug }: { slug: string }) {
                 <div className="comment-meta">
                   <strong>{comment.username}</strong>
                   <time>{formatDate(comment.created_at)}</time>
+                  {comment.ip_region && <span className="comment-ip-region">IP 属地 · {comment.ip_region}</span>}
                 </div>
                 {comment.reply_to_id && <span className="comment-reply-context">回复 {comment.reply_to_username || '已删除的评论'}</span>}
                 <p>{comment.body}</p>

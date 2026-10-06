@@ -13,6 +13,7 @@ import (
 
 	"github.com/bestows-Z/dev-hub/backend/internal/config"
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
+	"github.com/bestows-Z/dev-hub/backend/internal/geoip"
 	pg "github.com/bestows-Z/dev-hub/backend/internal/platform/postgres"
 	"github.com/bestows-Z/dev-hub/backend/internal/user"
 	"github.com/gin-gonic/gin"
@@ -64,11 +65,17 @@ func TestReplyRequiresApprovedCommentOnSameArticle(t *testing.T) {
 		router := gin.New()
 		router.Use(func(c *gin.Context) { c.Set("currentUser", &visitor); c.Next() })
 		h := NewHandler(tx, zap.NewNop())
+		regions, err := geoip.Open("")
+		if err != nil {
+			return err
+		}
+		h.SetRegionResolver(regions)
 		router.POST("/articles/:slug/comments", h.CreateComment)
 		router.GET("/articles/:slug/comments", h.ListComments)
 		post := func(id uint64) (int, string) {
 			req := httptest.NewRequest(http.MethodPost, "/articles/"+first.Slug+"/comments", bytes.NewBufferString(fmt.Sprintf(`{"body":"My reply","reply_to_id":%d}`, id)))
 			req.Header.Set("Content-Type", "application/json")
+			req.RemoteAddr = "127.0.0.1:3456"
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 			var result struct {
@@ -92,6 +99,9 @@ func TestReplyRequiresApprovedCommentOnSameArticle(t *testing.T) {
 		}
 		if reply.Status != "pending" {
 			return fmt.Errorf("reply status = %q", reply.Status)
+		}
+		if reply.IPRegion != "本地网络" {
+			return fmt.Errorf("reply IP region = %q", reply.IPRegion)
 		}
 		if err := tx.Model(&reply).Update("status", "approved").Error; err != nil {
 			return err

@@ -18,7 +18,10 @@ type Config struct {
 	Auth      AuthConfig
 	Assistant AssistantConfig
 	Storage   StorageConfig
+	GeoIP     GeoIPConfig
 }
+
+type GeoIPConfig struct{ DBPath string }
 
 type AuthConfig struct{ JWTSecret string }
 
@@ -57,8 +60,9 @@ type AppConfig struct {
 }
 
 type HTTPConfig struct {
-	Host string
-	Port int
+	Host           string
+	Port           int
+	TrustedProxies string
 }
 type PostgresConfig struct {
 	Host         string
@@ -103,6 +107,8 @@ func Load() (*Config, error) {
 
 		"HTTP_HOST",
 		"HTTP_PORT",
+		"HTTP_TRUSTED_PROXIES",
+		"IP_REGION_DB_PATH",
 
 		"POSTGRES_HOST",
 		"POSTGRES_PORT",
@@ -168,8 +174,9 @@ func Load() (*Config, error) {
 		},
 
 		HTTP: HTTPConfig{
-			Host: v.GetString("HTTP_HOST"),
-			Port: v.GetInt("HTTP_PORT"),
+			Host:           v.GetString("HTTP_HOST"),
+			Port:           v.GetInt("HTTP_PORT"),
+			TrustedProxies: v.GetString("HTTP_TRUSTED_PROXIES"),
 		},
 
 		Postgres: PostgresConfig{
@@ -205,6 +212,7 @@ func Load() (*Config, error) {
 			Bucket:    v.GetString("MINIO_BUCKET"),
 			UseSSL:    v.GetBool("MINIO_USE_SSL"),
 		},
+		GeoIP: GeoIPConfig{DBPath: v.GetString("IP_REGION_DB_PATH")},
 	}
 
 	if cfg.Postgres.User == "" {

@@ -228,5 +228,6 @@
 .comment-reply-context{display:inline-block;margin-top:7px;padding:3px 8px;border-radius:5px;background:#edf4ee;color:#58745d;font-size:11px}
 .comment-reply-button{border:0;background:none;color:#438277;font-size:12px;font-weight:700;padding:8px 0 0;cursor:pointer}
 .comment-reply-button:hover{text-decoration:underline}
+.comment-ip-region{font-size:11px;color:#879a8d}
 :root[data-theme='night'] .comment-reply-target,:root[data-theme='night'] .comment-reply-context{background:#284537;color:#d5e9d4}
 :root[data-theme='night'] .comment-reply-button{color:#9bd6bd}

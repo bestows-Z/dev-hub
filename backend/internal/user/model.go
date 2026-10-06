@@ -27,6 +27,7 @@ type User struct {
 	Bio            string `gorm:"column:bio"`
 	WebsiteURL     string `gorm:"column:website_url"`
 	AvatarUploaded bool   `gorm:"column:avatar_uploaded"`
+	LastIPRegion   string `gorm:"column:last_ip_region"`
 
 	Role   Role   `gorm:"column:role"`
 	Status Status `gorm:"column:status"`
