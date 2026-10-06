@@ -58,6 +58,15 @@ func (h *Handler) Login(c *gin.Context) {
 
 const currentUserKey = "currentUser"
 
+func CurrentUser(c *gin.Context) *user.User {
+	value, exists := c.Get(currentUserKey)
+	if !exists {
+		return nil
+	}
+	u, _ := value.(*user.User)
+	return u
+}
+
 func (h *Handler) RequireUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		parts := strings.Fields(c.GetHeader("Authorization"))

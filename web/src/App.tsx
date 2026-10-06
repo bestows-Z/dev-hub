@@ -11,6 +11,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import Admin from './Admin'
 import { Account, Login, Register } from './Auth'
+import { Comments, LinkApplicationForm } from './Engagement'
 import { authChanged, readUser } from './session'
 import {
   ArrowDown,
@@ -618,6 +619,7 @@ function ArticleDetail() {
           </article>
         )}
       </Status>
+      {remote.data && <Comments slug={remote.data.slug} />}
     </div>
   )
 }
@@ -926,6 +928,7 @@ function Links() {
           ))}
         </div>
       </Status>
+      <LinkApplicationForm />
     </div>
   )
 }

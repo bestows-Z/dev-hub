@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   Check,
   Edit3,
@@ -13,8 +13,11 @@ import { ApiError, api, formatDate, formatPrice, type Page } from './api'
 import { clearSession, saveSession, type LoginResult } from './session'
 import './admin.css'
 
-type Kind = 'articles' | 'projects' | 'products' | 'links' | 'orders'
-type EditableKind = Exclude<Kind, 'orders'>
+type Kind = 'articles' | 'projects' | 'products' | 'links' | 'orders' | 'comments' | 'applications'
+type EditableKind = Exclude<Kind, 'orders' | 'comments' | 'applications'>
+function isEditableKind(kind: Kind): kind is EditableKind {
+  return kind === 'articles' || kind === 'projects' || kind === 'products' || kind === 'links'
+}
 type Item = Record<string, unknown> & { id: number }
 type Field = {
   key: string
@@ -28,6 +31,8 @@ const tabs: { kind: Kind; label: string }[] = [
   { kind: 'products', label: '商品' },
   { kind: 'links', label: '友链' },
   { kind: 'orders', label: '订单' },
+  { kind: 'comments', label: '评论审核' },
+  { kind: 'applications', label: '友链申请' },
 ]
 const fields: Record<EditableKind, Field[]> = {
   articles: [
@@ -134,6 +139,8 @@ export default function Admin() {
   const [message, setMessage] = useState('')
   const [authorized, setAuthorized] = useState(false)
   const [authRetry, setAuthRetry] = useState(0)
+  const requestSequence = useRef(0)
+  const currentKind = useRef<Kind>('articles')
 
   const request = useCallback(
     <T,>(path: string, options?: RequestInit) =>
@@ -145,11 +152,15 @@ export default function Admin() {
   )
   const refresh = useCallback(async () => {
     if (!token || !authorized) return
+    const sequence = ++requestSequence.current
     try {
-      const data = await request<Page<Item> | Item[]>(`/admin/${kind}?page_size=50`)
-      setItems(Array.isArray(data) ? data : data.items)
+      const path = kind === 'applications' ? 'link-applications' : kind
+      const data = await request<Page<Item> | Item[]>(`/admin/${path}?page_size=50`)
+      if (sequence === requestSequence.current && kind === currentKind.current)
+        setItems(Array.isArray(data) ? data : data.items)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '列表加载失败')
+      if (sequence === requestSequence.current && kind === currentKind.current)
+        setMessage(error instanceof Error ? error.message : '列表加载失败')
     }
   }, [token, authorized, kind, request])
 
@@ -200,6 +211,7 @@ export default function Admin() {
     }
   }
   function logout() {
+    requestSequence.current++
     clearSession()
     setToken('')
     setItems([])
@@ -208,7 +220,7 @@ export default function Admin() {
   }
   async function save(event: FormEvent) {
     event.preventDefault()
-    if (!form || kind === 'orders') return
+    if (!form || !isEditableKind(kind)) return
     setBusy(true)
     setMessage('')
     try {
@@ -253,6 +265,23 @@ export default function Admin() {
       await refresh()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '更新失败')
+    }
+  }
+  async function review(item: Item, status: 'approved' | 'rejected') {
+    setBusy(true)
+    setMessage('')
+    try {
+      const path = kind === 'applications' ? 'link-applications' : 'comments'
+      await request(`/admin/${path}/${item.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      })
+      setMessage(status === 'approved' ? '已通过审核' : '已驳回')
+      await refresh()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '审核失败')
+    } finally {
+      setBusy(false)
     }
   }
   async function uploadBundle(item: Item, file?: File) {
@@ -337,7 +366,11 @@ export default function Admin() {
             className={kind === tab.kind ? 'active' : ''}
             key={tab.kind}
             onClick={() => {
+              if (kind === tab.kind) return
+              currentKind.current = tab.kind
+              requestSequence.current++
               setKind(tab.kind)
+              setItems([])
               setForm(null)
               setMessage('')
             }}
@@ -354,7 +387,7 @@ export default function Admin() {
           <button type="button" onClick={() => void refresh()}>
             <RefreshCw size={16} /> 刷新
           </button>
-          {kind !== 'orders' && (
+          {isEditableKind(kind) && (
             <button type="button" className="admin-add" onClick={() => setForm({ ...blank[kind] })}>
               <Plus size={16} /> 新建
             </button>
@@ -366,7 +399,7 @@ export default function Admin() {
           {message}
         </p>
       )}
-      {form && kind !== 'orders' && (
+      {form && isEditableKind(kind) && (
         <form className="admin-editor" onSubmit={save}>
           <div className="admin-editor-head">
             <h2>
@@ -433,18 +466,54 @@ export default function Admin() {
           items.map((item) => (
             <div className="admin-row" key={item.id}>
               <div>
-                <strong>{String(item.title || item.name || item.order_no || `#${item.id}`)}</strong>
+                <strong>
+                  {String(
+                    item.title ||
+                      item.name ||
+                      item.article_title ||
+                      item.username ||
+                      item.order_no ||
+                      `#${item.id}`,
+                  )}
+                </strong>
                 <span>
-                  {kind === 'orders'
-                    ? `${formatPrice(Number(item.total_cents || 0))} · ${String(item.email)} · ${String(item.status)}`
-                    : `${String(item.slug || item.url || '')} · ${kind === 'links' ? (item.enabled ? '公开' : '隐藏') : item.status === 'published' ? '公开' : '草稿'}${kind === 'projects' && item.runtime_status === 'running' ? ' · 前后端运行中' : ''}`}
+                  {kind === 'comments'
+                    ? `${String(item.username)} · ${String(item.body)}`
+                    : kind === 'applications'
+                      ? `${String(item.username)} · ${String(item.url)}`
+                      : kind === 'orders'
+                        ? `${formatPrice(Number(item.total_cents || 0))} · ${String(item.email)} · ${String(item.status)}`
+                        : `${String(item.slug || item.url || '')} · ${kind === 'links' ? (item.enabled ? '公开' : '隐藏') : item.status === 'published' ? '公开' : '草稿'}${kind === 'projects' && item.runtime_status === 'running' ? ' · 前后端运行中' : ''}`}
                   {kind === 'orders' && item.created_at
                     ? ` · ${formatDate(String(item.created_at))}`
                     : ''}
                 </span>
+                {kind === 'applications' && (
+                  <span>
+                    介绍：{String(item.description || '未填写')} · 头像：
+                    {String(item.avatar_url || '未填写')}
+                  </span>
+                )}
               </div>
               <div className="admin-row-actions">
-                {kind === 'orders' ? (
+                {kind === 'comments' || kind === 'applications' ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void review(item, 'approved')}
+                    >
+                      通过
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void review(item, 'rejected')}
+                    >
+                      驳回
+                    </button>
+                  </>
+                ) : kind === 'orders' ? (
                   <>
                     {item.status === 'pending_payment' && (
                       <>
@@ -462,7 +531,7 @@ export default function Admin() {
                       </button>
                     )}
                   </>
-                ) : (
+                ) : isEditableKind(kind) ? (
                   <>
                     {kind === 'projects' && (
                       <>
@@ -505,7 +574,7 @@ export default function Admin() {
                       <Trash2 size={17} />
                     </button>
                   </>
-                )}
+                ) : null}
               </div>
             </div>
           ))

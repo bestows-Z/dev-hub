@@ -1,0 +1,225 @@
+.comments-section {
+  max-width: 850px;
+  margin: 64px auto 100px;
+  padding-top: 36px;
+  border-top: 1px solid #dce6e1;
+}
+.comments-heading {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 22px;
+}
+.comments-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: #e2efeb;
+  color: #40877e;
+}
+.comments-heading h2 {
+  margin: 0;
+  font-size: clamp(22px, 3vw, 28px);
+}
+.comments-heading p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #82918c;
+}
+.comment-form {
+  border: 1px solid #dbe5e0;
+  border-radius: 16px;
+  background: #fffefa;
+  padding: 20px;
+  box-shadow: 0 8px 24px #4469600a;
+}
+.comment-identity {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 14px;
+  color: #62766f;
+  font-size: 12px;
+}
+.comment-identity span,
+.comment-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #d9e9e3;
+  color: #397f75;
+  font-weight: 700;
+}
+.comment-form textarea,
+.link-application input,
+.link-application textarea {
+  width: 100%;
+  border: 1px solid #dce6e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #34423e;
+  padding: 12px 14px;
+  font: inherit;
+  resize: vertical;
+}
+.comment-form textarea {
+  min-height: 118px;
+}
+.comment-form textarea:focus,
+.link-application input:focus,
+.link-application textarea:focus {
+  outline: 2px solid #9accc0;
+  outline-offset: 1px;
+}
+.comment-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+.comment-form-footer small {
+  color: #84928e;
+}
+.comment-form-footer button,
+.link-application button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 9px;
+  background: #40877e;
+  color: #fff;
+  padding: 10px 15px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.comment-form-footer button:disabled,
+.link-application button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.comment-notice {
+  margin: 12px 0 0;
+  color: #477b70;
+  font-size: 13px;
+}
+.comment-login {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  flex-wrap: wrap;
+  border: 1px dashed #cbded6;
+  border-radius: 12px;
+  background: #f8fbf8;
+  padding: 20px;
+  color: #667970;
+}
+.comment-login a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #347e73;
+  font-weight: 700;
+}
+.comment-list {
+  margin-top: 28px;
+}
+.comment-item {
+  display: flex;
+  gap: 12px;
+  padding: 22px 0;
+  border-bottom: 1px solid #e3ebe6;
+}
+.comment-item > div {
+  min-width: 0;
+}
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.comment-meta strong {
+  font-size: 14px;
+}
+.comment-meta time {
+  color: #98a5a0;
+  font-size: 11px;
+}
+.comment-item p {
+  margin: 7px 0 0;
+  color: #586b63;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.comments-empty {
+  margin: 32px 0;
+  text-align: center;
+  color: #8d9c95;
+}
+.comments-pages {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  margin-top: 20px;
+}
+.comments-pages button {
+  border: 1px solid #d8e6df;
+  border-radius: 7px;
+  background: #fff;
+  padding: 7px 13px;
+  color: #4a746b;
+}
+.comments-pages button:disabled {
+  opacity: 0.4;
+}
+.link-application {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(300px, 1.3fr);
+  gap: 45px;
+  margin: 70px 0 100px;
+  padding: 34px;
+  border-radius: 20px;
+  background: #f2f7f2;
+}
+.link-application h2 {
+  margin: 8px 0;
+  font-size: 28px;
+}
+.link-application p {
+  color: #71827b;
+  line-height: 1.8;
+}
+.link-application form {
+  display: grid;
+  gap: 15px;
+}
+.link-application label {
+  display: grid;
+  gap: 7px;
+  color: #52645c;
+  font-size: 12px;
+  font-weight: 700;
+}
+.link-application button {
+  justify-self: end;
+}
+@media (max-width: 700px) {
+  .link-application {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 22px;
+  }
+  .comment-form-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

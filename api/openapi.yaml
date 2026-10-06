@@ -43,6 +43,9 @@ tags:
   - name: Assistant
     description: 基于已发布文章的问答；可选接入兼容 Chat Completions 的模型
 
+  - name: Engagement
+    description: 文章评论与友链申请；提交需要登录并经管理员审核
+
 
 paths:
 
@@ -85,6 +88,69 @@ paths:
                           properties:
                             title: { type: string }
                             url: { type: string, example: /articles/postgres-notes }
+
+  /api/v1/admin/comments:
+    get:
+      tags: [Admin]
+      summary: 分页读取待审或已审评论
+      operationId: adminListComments
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { in: query, name: status, schema: { type: string, enum: [pending, approved, rejected], default: pending } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: page_size, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        "200": { $ref: "#/components/responses/AdminPageSuccess" }
+  /api/v1/admin/comments/{id}:
+    patch:
+      tags: [Admin]
+      summary: 审核评论
+      operationId: adminReviewComment
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [approved, rejected] }
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+  /api/v1/admin/link-applications:
+    get:
+      tags: [Admin]
+      summary: 分页读取友链申请
+      operationId: adminListLinkApplications
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { in: query, name: status, schema: { type: string, enum: [pending, approved, rejected], default: pending } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: page_size, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        "200": { $ref: "#/components/responses/AdminPageSuccess" }
+  /api/v1/admin/link-applications/{id}:
+    patch:
+      tags: [Admin]
+      summary: 审核友链申请；通过后自动创建公开友链
+      operationId: adminReviewLinkApplication
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer, format: int64 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [approved, rejected] }
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
 
   /api/v1/admin/articles:
     get:
@@ -685,6 +751,51 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/BusinessErrorResponse" }
 
+  /api/v1/articles/{slug}/comments:
+    parameters:
+      - { in: path, name: slug, required: true, schema: { type: string } }
+    get:
+      tags: [Engagement]
+      summary: 读取已审核的文章评论
+      operationId: listArticleComments
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+      responses:
+        "200":
+          description: 每页最多 20 条公开评论
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string }
+                  data:
+                    type: object
+                    properties:
+                      items: { type: array, items: { $ref: "#/components/schemas/ArticleComment" } }
+                      total: { type: integer, format: int64 }
+                      page: { type: integer }
+                      page_size: { type: integer, example: 20 }
+    post:
+      tags: [Engagement]
+      summary: 登录读者提交评论，等待审核
+      description: 同一用户每 30 秒最多提交一条评论；超出时业务 code 为 42901。
+      operationId: createArticleComment
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 3, maxLength: 2000 }
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+        "401": { description: 未登录或访问令牌失效 }
+
   /api/v1/links:
     get:
       tags: [Content]
@@ -704,6 +815,29 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/FriendLink" }
+
+  /api/v1/link-applications:
+    post:
+      tags: [Engagement]
+      summary: 登录读者申请友链，等待审核
+      description: 每个用户同时只能有一条待审申请；重复提交时业务 code 为 40901。
+      operationId: applyFriendLink
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, url]
+              properties:
+                name: { type: string, maxLength: 100 }
+                url: { type: string, format: uri }
+                avatar_url: { type: string, format: uri }
+                description: { type: string, maxLength: 280 }
+      responses:
+        "200": { $ref: "#/components/responses/AdminSuccess" }
+        "401": { description: 未登录或访问令牌失效 }
 
   /api/v1/health:
     get:
@@ -1061,6 +1195,15 @@ components:
         quantity: { type: integer }
         total_cents: { type: integer, format: int64 }
         status: { type: string, enum: [pending_payment, paid, delivered, cancelled] }
+        created_at: { type: string, format: date-time }
+
+    ArticleComment:
+      type: object
+      required: [id, body, username, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        body: { type: string }
+        username: { type: string }
         created_at: { type: string, format: date-time }
 
     ArticleFacet:

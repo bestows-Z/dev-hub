@@ -10,6 +10,7 @@ import (
 	"github.com/bestows-Z/dev-hub/backend/internal/assistant"
 	"github.com/bestows-Z/dev-hub/backend/internal/auth"
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
+	"github.com/bestows-Z/dev-hub/backend/internal/engagement"
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
 	"github.com/bestows-Z/dev-hub/backend/internal/project"
 	"github.com/bestows-Z/dev-hub/backend/internal/store"
@@ -17,7 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler, previewHandler *project.PreviewHandler, runtimeHandler *project.RuntimeHandler, adminHandler *admin.Handler, assistantHandler *assistant.Handler) *gin.Engine {
+func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler, previewHandler *project.PreviewHandler, runtimeHandler *project.RuntimeHandler, adminHandler *admin.Handler, assistantHandler *assistant.Handler, engagementHandler *engagement.Handler) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
@@ -60,7 +61,10 @@ func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, co
 	v1.GET("/articles", contentHandler.ListArticles)
 	v1.GET("/articles/facets", contentHandler.ArticleFacets)
 	v1.GET("/articles/:slug", contentHandler.GetArticle)
+	v1.GET("/articles/:slug/comments", engagementHandler.ListComments)
+	v1.POST("/articles/:slug/comments", authHandler.RequireUser(), engagementHandler.CreateComment)
 	v1.GET("/links", contentHandler.ListLinks)
+	v1.POST("/link-applications", authHandler.RequireUser(), engagementHandler.ApplyLink)
 	v1.GET("/products", storeHandler.ListProducts)
 	v1.GET("/products/:slug", storeHandler.GetProduct)
 	v1.POST("/orders", storeHandler.CreateOrder)
@@ -77,6 +81,10 @@ func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, co
 	adminGroup.POST("/links", adminHandler.CreateLink)
 	adminGroup.PUT("/links/:id", adminHandler.UpdateLink)
 	adminGroup.DELETE("/links/:id", adminHandler.DeleteLink)
+	adminGroup.GET("/comments", adminHandler.ListComments)
+	adminGroup.PATCH("/comments/:id", adminHandler.ReviewComment)
+	adminGroup.GET("/link-applications", adminHandler.ListLinkApplications)
+	adminGroup.PATCH("/link-applications/:id", adminHandler.ReviewLinkApplication)
 	adminGroup.GET("/products", adminHandler.ListProducts)
 	adminGroup.POST("/products", adminHandler.CreateProduct)
 	adminGroup.PUT("/products/:id", adminHandler.UpdateProduct)
