@@ -1,5 +1,7 @@
 import {
   useEffect,
+  lazy,
+  Suspense,
   useRef,
   useState,
   type FormEvent,
@@ -7,12 +9,11 @@ import {
   type ReactNode,
 } from 'react'
 import { Link, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import Admin from './Admin'
 import { Account, Login, Register } from './Auth'
 import { Comments, LinkApplicationForm } from './Engagement'
 import { authChanged, readUser } from './session'
+
 import {
   ArrowDown,
   ArrowRight,
@@ -45,6 +46,7 @@ import {
   type Project,
 } from './api'
 
+const ArticleReading = lazy(() => import('./ArticleReading'))
 type Remote<T> = { data: T | null; loading: boolean; error: string }
 const contactEmail = import.meta.env.VITE_CONTACT_EMAIL as string | undefined
 const contactHref = contactEmail ? `mailto:${contactEmail}` : 'https://github.com/bestows-Z'
@@ -587,35 +589,16 @@ function ArticleDetail() {
   const { slug } = useParams()
   const remote = useRemote<Article>(`/articles/${encodeURIComponent(slug || '')}`)
   return (
-    <div className="container article-detail">
+    <div className="container article-detail reading-detail">
       <Link className="back-link" to="/articles">
         <ChevronLeft size={17} /> 返回文章
       </Link>
       <Status loading={remote.loading} error={remote.error} empty={!remote.data}>
         {remote.data && (
           <article>
-            <div className="article-head">
-              <span className="eyebrow">文章 / {formatDate(remote.data.published_at)}</span>
-              <h1>{remote.data.title}</h1>
-              <p>{remote.data.excerpt}</p>
-              <div className="tag-row">
-                {remote.data.tags?.map((tag) => (
-                  <span key={tag}>{tag}</span>
-                ))}
-              </div>
-            </div>
-            {remote.data.cover_url && (
-              <img className="detail-cover" src={remote.data.cover_url} alt="文章封面" />
-            )}
-            <div className="markdown">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{remote.data.body_md}</ReactMarkdown>
-            </div>
-            <div className="article-bottom">
-              <span>感谢阅读。</span>
-              <Link to="/articles">
-                继续探索 <ArrowRight size={17} />
-              </Link>
-            </div>
+            <Suspense fallback={<div className="loading-state">正在整理文章…</div>}>
+              <ArticleReading article={remote.data} />
+            </Suspense>
           </article>
         )}
       </Status>

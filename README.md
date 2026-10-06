@@ -22,6 +22,8 @@
 
 文章管理支持技术、游记、随笔、记录四个栏目和自定义标签。前台 `/articles` 可搜索标题、摘要与正文，并按栏目或标签筛选；`/travel`、`/essays`、`/records` 目前不会填充虚构内容，站长发布对应文章后自动展示。更新旧数据库时需执行 `migrations/20261006001000_article_categories.sql` 的 Up 段。
 
+文章正文支持 GitHub 风格 Markdown、语法高亮、代码复制、自动目录和移动端阅读布局。目录与正文由同一套 Markdown 解析规则生成锚点，重复标题也能准确跳转。
+
 登录读者可以在文章下提交评论、在友链页申请交换链接。内容先进入审核队列；站长在 `/admin` 的“评论审核”和“友链申请”中通过或驳回。通过的评论才公开，通过的友链申请会自动创建公开友链。请一并执行 `migrations/20261006002000_reader_interactions.sql` 的 Up 段。
 
 开发时前端由 Vite 代理 `/api` 到 `http://localhost:8080`。API 健康检查：`GET /api/v1/health`。
