@@ -1,6 +1,6 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowRight, Eye, EyeOff, LogOut, UserRound } from 'lucide-react'
+import { ArrowRight, Eye, EyeOff, LogOut, Save, UploadCloud, UserRound } from 'lucide-react'
 import { ApiError, api, formatDate } from './api'
 import {
   clearSession,
@@ -238,19 +238,43 @@ export function Account() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(Boolean(token))
   const [retry, setRetry] = useState(0)
+  const [saving, setSaving] = useState(false)
+  const [profileMessage, setProfileMessage] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [email, setEmail] = useState('')
+  const [bio, setBio] = useState('')
+  const [websiteURL, setWebsiteURL] = useState('')
+  const mounted = useRef(false)
+  const draftUserID = useRef<number | null>(null)
+  const draftDirty = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+  useEffect(() => {
+    if (!user || (draftUserID.current === user.id && draftDirty.current)) return
+    if (draftUserID.current !== user.id) draftDirty.current = false
+    draftUserID.current = user.id
+    setDisplayName(user.display_name || '')
+    setEmail(user.email)
+    setBio(user.bio || '')
+    setWebsiteURL(user.website_url || '')
+  }, [user])
   useEffect(() => {
     if (!token) return
     let active = true
     setLoading(true)
     api<AuthUser>('/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then((freshUser) => {
-        if (!active) return
+        if (!active || readToken() !== token) return
         setUser(freshUser)
         refreshSessionUser(freshUser)
         setError('')
       })
       .catch((failure) => {
-        if (!active) return
+        if (!active || readToken() !== token) return
         if (failure instanceof ApiError && failure.status === 401) {
           clearSession()
           setUser(null)
@@ -271,15 +295,115 @@ export function Account() {
     clearSession()
     navigate('/login', { replace: true })
   }
+  async function saveProfile(event: FormEvent) {
+    event.preventDefault()
+    if (!token) return
+    const requestToken = token
+    setSaving(true)
+    setProfileMessage('')
+    try {
+      const updated = await api<AuthUser>('/auth/me', {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ display_name: displayName, email, bio, website_url: websiteURL }),
+      })
+      if (!mounted.current || readToken() !== requestToken) return
+      draftDirty.current = false
+      setUser(updated)
+      refreshSessionUser(updated)
+      setProfileMessage('资料已保存')
+    } catch (failure) {
+      if (!mounted.current || readToken() !== requestToken) return
+      if (failure instanceof ApiError && failure.status === 401) {
+        setSaving(false)
+        clearSession()
+        setUser(null)
+        setError('登录已失效，请重新登录。')
+        return
+      }
+      setProfileMessage(failure instanceof Error ? failure.message : '保存失败')
+    } finally {
+      if (mounted.current && readToken() === requestToken) setSaving(false)
+    }
+  }
+  async function uploadAvatar(file?: File) {
+    if (!file || !token) return
+    if (file.size > 2 * 1024 * 1024 || !['image/png', 'image/jpeg'].includes(file.type)) {
+      setProfileMessage('请选择不超过 2 MiB 的 PNG 或 JPEG 图片。')
+      return
+    }
+    setSaving(true)
+    setProfileMessage('')
+    const requestToken = token
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      const updated = await api<AuthUser>('/auth/me/avatar', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body,
+      })
+      if (!mounted.current || readToken() !== requestToken) return
+      setUser(updated)
+      refreshSessionUser(updated)
+      setProfileMessage('头像已更新')
+    } catch (failure) {
+      if (!mounted.current || readToken() !== requestToken) return
+      if (failure instanceof ApiError && failure.status === 401) {
+        setSaving(false)
+        clearSession()
+        setUser(null)
+        setError('登录已失效，请重新登录。')
+        return
+      }
+      setProfileMessage(failure instanceof Error ? failure.message : '头像上传失败')
+    } finally {
+      if (mounted.current && readToken() === requestToken) setSaving(false)
+    }
+  }
+  async function deleteAvatar() {
+    if (!token) return
+    const requestToken = token
+    setSaving(true)
+    setProfileMessage('')
+    try {
+      const updated = await api<AuthUser>('/auth/me/avatar', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${requestToken}` },
+      })
+      if (!mounted.current || readToken() !== requestToken) return
+      setUser(updated)
+      refreshSessionUser(updated)
+      setProfileMessage('头像已移除')
+    } catch (failure) {
+      if (!mounted.current || readToken() !== requestToken) return
+      if (failure instanceof ApiError && failure.status === 401) {
+        setSaving(false)
+        clearSession()
+        setUser(null)
+        setError('登录已失效，请重新登录。')
+        return
+      }
+      setProfileMessage(failure instanceof Error ? failure.message : '头像移除失败')
+    } finally {
+      if (mounted.current && readToken() === requestToken) setSaving(false)
+    }
+  }
   return (
     <div className="account-page container">
       <span className="auth-overline">账户 / 我的资料</span>
       <div className="account-card">
         <div className="account-avatar">
-          <UserRound size={34} />
+          {user?.avatar_url ? (
+            <img src={user.avatar_url} alt="我的头像" />
+          ) : (
+            <UserRound size={34} />
+          )}
         </div>
         <div className="account-details">
-          <h1>{user?.username || (loading ? '正在读取账户…' : '账户暂不可用')}</h1>
+          <h1>
+            {user?.display_name || user?.username || (loading ? '正在读取账户…' : '账户暂不可用')}
+          </h1>
           <p>{user?.email || (loading ? '正在确认登录状态' : error)}</p>
           {user && (
             <div className="account-meta">
@@ -289,11 +413,115 @@ export function Account() {
           )}
         </div>
         {user && (
-          <button type="button" className="account-logout" onClick={logout}>
+          <button type="button" className="account-logout" onClick={logout} disabled={saving}>
             <LogOut size={17} /> 退出登录
           </button>
         )}
       </div>
+      {user && !loading && !error && (
+        <div className="account-edit-layout">
+          <form className="account-edit" onSubmit={saveProfile}>
+            <div className="account-section-head">
+              <span>01 / PROFILE</span>
+              <h2>个人资料</h2>
+              <p>这些内容会显示在你的账户页。邮箱用于登录，不会公开展示。</p>
+            </div>
+            <fieldset className="account-edit-grid" disabled={saving}>
+              <label>
+                <span>显示名称</span>
+                <input
+                  value={displayName}
+                  onChange={(event) => {
+                    draftDirty.current = true
+                    setDisplayName(event.target.value)
+                  }}
+                  maxLength={60}
+                  placeholder="怎么称呼你"
+                />
+              </label>
+              <label>
+                <span>邮箱</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => {
+                    draftDirty.current = true
+                    setEmail(event.target.value)
+                  }}
+                  maxLength={255}
+                  required
+                />
+              </label>
+              <label className="wide">
+                <span>个人网站</span>
+                <input
+                  type="url"
+                  value={websiteURL}
+                  onChange={(event) => {
+                    draftDirty.current = true
+                    setWebsiteURL(event.target.value)
+                  }}
+                  maxLength={255}
+                  placeholder="https://"
+                />
+              </label>
+              <label className="wide">
+                <span>个人简介</span>
+                <textarea
+                  value={bio}
+                  onChange={(event) => {
+                    draftDirty.current = true
+                    setBio(event.target.value)
+                  }}
+                  maxLength={500}
+                  rows={4}
+                  placeholder="写一点关于自己的介绍"
+                />
+              </label>
+            </fieldset>
+            <div className="account-edit-actions">
+              <button type="submit" disabled={saving}>
+                <Save size={16} /> {saving ? '保存中…' : '保存资料'}
+              </button>
+              <span role="status">{profileMessage}</span>
+            </div>
+          </form>
+          <aside className="account-avatar-editor">
+            <span>02 / AVATAR</span>
+            <h2>我的头像</h2>
+            <div className="account-avatar-preview">
+              {user.avatar_url ? (
+                <img src={user.avatar_url} alt="当前头像" />
+              ) : (
+                <UserRound size={44} />
+              )}
+            </div>
+            <p>上传 PNG 或 JPEG，文件不超过 2 MiB。建议使用方形图片。</p>
+            <label className="account-avatar-upload">
+              <UploadCloud size={16} /> 选择图片
+              <input
+                type="file"
+                accept="image/png,image/jpeg"
+                disabled={saving}
+                onChange={(event) => {
+                  void uploadAvatar(event.target.files?.[0])
+                  event.target.value = ''
+                }}
+              />
+            </label>
+            {user.avatar_url && (
+              <button
+                className="account-avatar-remove"
+                type="button"
+                disabled={saving}
+                onClick={() => void deleteAvatar()}
+              >
+                移除头像
+              </button>
+            )}
+          </aside>
+        </div>
+      )}
       {error && token && (
         <button
           className="account-retry"

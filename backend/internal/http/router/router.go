@@ -58,6 +58,10 @@ func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, co
 		authGroup.POST("/login", authHandler.Login)
 	}
 	v1.GET("/auth/me", authHandler.RequireUser(), authHandler.Me)
+	v1.PUT("/auth/me", authHandler.RequireUser(), authHandler.UpdateMe)
+	v1.POST("/auth/me/avatar", authHandler.RequireUser(), authHandler.UploadAvatar)
+	v1.DELETE("/auth/me/avatar", authHandler.RequireUser(), authHandler.DeleteAvatar)
+	v1.GET("/avatars/:id", authHandler.ServeAvatar)
 	v1.GET("/articles", contentHandler.ListArticles)
 	v1.GET("/articles/facets", contentHandler.ArticleFacets)
 	v1.GET("/articles/:slug", contentHandler.GetArticle)

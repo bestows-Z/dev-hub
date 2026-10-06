@@ -382,6 +382,63 @@ body {
   overflow: hidden;
   padding: 22px;
 }
+.visitor-card {
+  padding: 18px 20px;
+}
+.visitor-card-kicker {
+  color: #5b9c89;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.visitor-card-person {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 15px 0;
+}
+.visitor-card-avatar {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #e3f0e9;
+  color: #4b9274;
+}
+.visitor-card-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.visitor-card-person strong,
+.visitor-card-person small {
+  display: block;
+}
+.visitor-card-person strong {
+  color: #385447;
+  font-size: 13px;
+}
+.visitor-card-person small {
+  margin-top: 3px;
+  color: #708477;
+  font-size: 11px;
+}
+.visitor-card > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #3b8a65;
+  font-size: 12px;
+  font-weight: 750;
+}
+.visitor-card > a:hover svg {
+  transform: translateX(3px);
+}
+.visitor-card > a svg {
+  transition: transform 0.2s;
+}
 .profile-card {
   padding: 0 22px 22px;
   text-align: center;

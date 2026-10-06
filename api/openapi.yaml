@@ -518,6 +518,70 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BusinessErrorResponse" }
+    put:
+      tags: [Auth]
+      summary: 更新当前用户资料
+      description: 邮箱可用于后续登录；用户名、角色和状态不可在此修改。个人资料仅由本人读取。
+      operationId: updateCurrentUser
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email, maxLength: 255 }
+                display_name: { type: string, maxLength: 60 }
+                bio: { type: string, maxLength: 500 }
+                website_url: { type: string, maxLength: 255, description: 为空或以 http/https 开头的完整网址 }
+      responses:
+        "200": { $ref: "#/components/responses/UserSuccess" }
+        "401": { $ref: "#/components/responses/AuthRequired" }
+
+  /api/v1/auth/me/avatar:
+    post:
+      tags: [Auth]
+      summary: 上传并替换本人头像
+      description: 仅接收不超过 2 MiB 的 PNG/JPEG，图像最长边不超过 2048 像素；服务端重新编码为 PNG 并去掉元数据。
+      operationId: uploadCurrentUserAvatar
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200": { $ref: "#/components/responses/UserSuccess" }
+        "401": { $ref: "#/components/responses/AuthRequired" }
+    delete:
+      tags: [Auth]
+      summary: 移除本人头像
+      operationId: deleteCurrentUserAvatar
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200": { $ref: "#/components/responses/UserSuccess" }
+        "401": { $ref: "#/components/responses/AuthRequired" }
+
+  /api/v1/avatars/{id}:
+    get:
+      tags: [Auth]
+      summary: 读取用户公开头像
+      operationId: getUserAvatar
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        "200":
+          description: PNG 图片内容
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+        "404": { description: 头像不存在 }
 
   /api/v1/projects:
     get:
@@ -1116,6 +1180,22 @@ components:
               status: { type: string, enum: [draft, published], default: draft }
 
   responses:
+    UserSuccess:
+      description: 当前用户资料
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [code, message, data]
+            properties:
+              code: { type: integer, example: 0 }
+              message: { type: string, example: success }
+              data: { $ref: "#/components/schemas/User" }
+    AuthRequired:
+      description: 缺少或无效的访问令牌
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/BusinessErrorResponse" }
     AdminSuccess:
       description: 成功时 code 为 0；业务失败时按 code 判断
       content:
@@ -1387,6 +1467,10 @@ components:
         - id
         - username
         - email
+        - display_name
+        - bio
+        - website_url
+        - avatar_url
         - role
         - status
         - created_at
@@ -1406,6 +1490,11 @@ components:
           type: string
           format: email
           example: tianhao@example.com
+
+        display_name: { type: string, example: 天昊 }
+        bio: { type: string, example: 写代码，也记生活。 }
+        website_url: { type: string, example: "https://example.com" }
+        avatar_url: { type: string, description: 空字符串或本站头像相对路径 }
 
         role:
           type: integer

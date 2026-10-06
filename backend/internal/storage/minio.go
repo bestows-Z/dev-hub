@@ -62,6 +62,10 @@ func (s *Store) Get(ctx context.Context, key string) (io.ReadCloser, int64, stri
 	return object, info.Size, info.ContentType, nil
 }
 
+func (s *Store) Remove(ctx context.Context, key string) error {
+	return s.client.RemoveObject(ctx, s.bucket, key, minio.RemoveObjectOptions{})
+}
+
 func (s *Store) RemovePrefix(ctx context.Context, prefix string) error {
 	for item := range s.client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{Prefix: prefix + "/", Recursive: true}) {
 		if item.Err != nil {

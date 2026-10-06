@@ -147,9 +147,13 @@ export default function ArticleReading({ article }: { article: Article }) {
           )}
           <div className="reading-person">
             <span className="reading-person-avatar">
-              <UserRound size={25} />
+              {visitor?.avatar_url ? (
+                <img src={visitor.avatar_url} alt="" />
+              ) : (
+                <UserRound size={25} />
+              )}
             </span>
-            <strong>{visitor ? visitor.username : '你好，访客'}</strong>
+            <strong>{visitor ? visitor.display_name || visitor.username : '你好，访客'}</strong>
             <p>
               {visitor ? '欢迎回来，可以在文章下交流。' : '登录后可参与文章讨论，也可以申请友链。'}
             </p>

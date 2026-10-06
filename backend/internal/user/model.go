@@ -19,9 +19,13 @@ const (
 type User struct {
 	ID uint64 `gorm:"column:id;primaryKey"`
 
-	Username     string `gorm:"column:username"`
-	Email        string `gorm:"column:email"`
-	PasswordHash string `gorm:"column:password_hash"`
+	Username       string `gorm:"column:username"`
+	Email          string `gorm:"column:email"`
+	PasswordHash   string `gorm:"column:password_hash"`
+	DisplayName    string `gorm:"column:display_name"`
+	Bio            string `gorm:"column:bio"`
+	WebsiteURL     string `gorm:"column:website_url"`
+	AvatarUploaded bool   `gorm:"column:avatar_uploaded"`
 
 	Role   Role   `gorm:"column:role"`
 	Status Status `gorm:"column:status"`

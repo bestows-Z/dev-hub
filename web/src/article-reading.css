@@ -287,6 +287,12 @@
   background: #e2efe8;
   color: #479282;
 }
+.reading-person-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
 .reading-person strong {
   display: block;
   color: #3d574d;

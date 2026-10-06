@@ -65,7 +65,6 @@ func main() {
 		userService,
 		logger,
 	)
-	authHandler := auth.NewHandler(userRepository, auth.NewTokens(cfg.Auth.JWTSecret), logger)
 	contentHandler := content.NewHandler(content.NewRepository(postgresClient.DB), logger)
 	storeHandler := store.NewHandler(store.NewRepository(postgresClient.DB), logger)
 	projectHandler := project.NewHandler(project.NewRepository(postgresClient.DB), logger)
@@ -73,6 +72,13 @@ func main() {
 	if err != nil {
 		logger.Fatal("initialize project storage failed", zap.Error(err))
 	}
+	bucketCtx, bucketCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if err := objectStore.EnsureBucket(bucketCtx); err != nil {
+		bucketCancel()
+		logger.Fatal("prepare project storage bucket failed", zap.Error(err))
+	}
+	bucketCancel()
+	authHandler := auth.NewHandler(userRepository, auth.NewTokens(cfg.Auth.JWTSecret), postgresClient.DB, objectStore, logger)
 	previewHandler := project.NewPreviewHandler(postgresClient.DB, objectStore, logger)
 	runtimeHandler := project.NewRuntimeHandler(postgresClient.DB, logger)
 	adminHandler := admin.NewHandler(postgresClient.DB, objectStore, logger)

@@ -301,6 +301,7 @@ function ArticleCard({ article, index = 0 }: { article: ArticleSummary; index?: 
 }
 
 function Home() {
+  const visitor = readUser()
   const articles = useRemote<Page<ArticleSummary>>('/articles?page_size=5')
   const projects = useRemote<Page<Project>>('/projects?page_size=2')
   const products = useRemote<Page<Product>>('/products?page_size=2')
@@ -392,6 +393,25 @@ function Home() {
           </section>
         </div>
         <aside className="home-sidebar" aria-label="关于本站">
+          <div className="sidebar-card visitor-card">
+            <span className="visitor-card-kicker">你的空间</span>
+            <div className="visitor-card-person">
+              <span className="visitor-card-avatar">
+                {visitor?.avatar_url ? (
+                  <img src={visitor.avatar_url} alt="" />
+                ) : (
+                  <UserRound size={23} />
+                )}
+              </span>
+              <div>
+                <strong>{visitor?.display_name || visitor?.username || '你好，访客'}</strong>
+                <small>{visitor ? '欢迎回来' : '登录后参与讨论'}</small>
+              </div>
+            </div>
+            <Link to={visitor ? '/account' : '/login'}>
+              {visitor ? '查看我的资料' : '登录 / 注册'} <ArrowRight size={15} />
+            </Link>
+          </div>
           <div className="sidebar-card profile-card">
             <div className="profile-cover" />
             <div className="profile-avatar">

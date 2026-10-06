@@ -6,20 +6,24 @@ import (
 	"strings"
 
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
+	"github.com/bestows-Z/dev-hub/backend/internal/storage"
 	"github.com/bestows-Z/dev-hub/backend/internal/user"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type Handler struct {
 	users  user.Repository
 	tokens *Tokens
 	logger *zap.Logger
+	db     *gorm.DB
+	store  *storage.Store
 }
 
-func NewHandler(users user.Repository, tokens *Tokens, logger *zap.Logger) *Handler {
-	return &Handler{users, tokens, logger}
+func NewHandler(users user.Repository, tokens *Tokens, db *gorm.DB, store *storage.Store, logger *zap.Logger) *Handler {
+	return &Handler{users: users, tokens: tokens, db: db, store: store, logger: logger}
 }
 
 type LoginRequest struct {
