@@ -16,8 +16,9 @@ var errAlreadyReviewed = errors.New("already reviewed")
 
 type commentReviewRow struct {
 	engagement.Comment
-	Username     string `json:"username"`
-	ArticleTitle string `json:"article_title"`
+	Username        string `json:"username"`
+	ArticleTitle    string `json:"article_title"`
+	ReplyToUsername string `json:"reply_to_username"`
 }
 
 func (h *Handler) ListComments(c *gin.Context) {
@@ -37,7 +38,9 @@ func (h *Handler) ListComments(c *gin.Context) {
 		return
 	}
 	items := make([]commentReviewRow, 0)
-	listQuery := q.Select("article_comments.*, users.username, articles.title AS article_title")
+	listQuery := q.Select("article_comments.*, users.username, articles.title AS article_title, reply_users.username AS reply_to_username").
+		Joins("LEFT JOIN article_comments reply_target ON reply_target.id = article_comments.reply_to_id").
+		Joins("LEFT JOIN users reply_users ON reply_users.id = reply_target.user_id")
 	if searchPattern(c) == "" {
 		listQuery = listQuery.Joins("JOIN users ON users.id = article_comments.user_id").Joins("JOIN articles ON articles.id = article_comments.article_id")
 	}

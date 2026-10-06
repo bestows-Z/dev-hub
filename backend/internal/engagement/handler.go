@@ -67,7 +67,11 @@ func (h *Handler) ListComments(c *gin.Context) {
 		return
 	}
 	items := make([]CommentView, 0)
-	if err := query.Select("article_comments.id, article_comments.body, users.username, article_comments.created_at").Joins("JOIN users ON users.id = article_comments.user_id").Order("article_comments.created_at DESC, article_comments.id DESC").Limit(20).Offset((page - 1) * 20).Scan(&items).Error; err != nil {
+	if err := query.Select("article_comments.id, article_comments.body, users.username, article_comments.reply_to_id, reply_users.username AS reply_to_username, article_comments.created_at").
+		Joins("JOIN users ON users.id = article_comments.user_id").
+		Joins("LEFT JOIN article_comments reply_target ON reply_target.id = article_comments.reply_to_id").
+		Joins("LEFT JOIN users reply_users ON reply_users.id = reply_target.user_id").
+		Order("article_comments.created_at DESC, article_comments.id DESC").Limit(20).Offset((page - 1) * 20).Scan(&items).Error; err != nil {
 		h.logger.Error("list comments", zap.Error(err))
 		response.Error(c)
 		return
@@ -81,7 +85,8 @@ func (h *Handler) CreateComment(c *gin.Context) {
 		return
 	}
 	var input struct {
-		Body string `json:"body" binding:"required"`
+		Body      string  `json:"body" binding:"required"`
+		ReplyToID *uint64 `json:"reply_to_id"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		response.Fail(c, response.CodeInvalidParams, "comment is required")
@@ -92,11 +97,24 @@ func (h *Handler) CreateComment(c *gin.Context) {
 		response.Fail(c, response.CodeInvalidParams, "comment must contain 3 to 2000 characters")
 		return
 	}
+	if input.ReplyToID != nil && *input.ReplyToID == 0 {
+		response.Fail(c, response.CodeInvalidParams, "invalid reply target")
+		return
+	}
 	u := auth.CurrentUser(c)
-	item := Comment{ArticleID: article.ID, UserID: u.ID, Body: input.Body, Status: "pending"}
+	item := Comment{ArticleID: article.ID, UserID: u.ID, ReplyToID: input.ReplyToID, Body: input.Body, Status: "pending"}
 	err := h.db.WithContext(c.Request.Context()).Transaction(func(tx *gorm.DB) error {
 		if err := lockUser(tx, u.ID); err != nil {
 			return err
+		}
+		if input.ReplyToID != nil {
+			var target Comment
+			if err := tx.Select("id").Where("id = ? AND article_id = ? AND status = ?", *input.ReplyToID, article.ID, "approved").Take(&target).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return errReplyTargetMissing
+				}
+				return err
+			}
 		}
 		var recent int64
 		if err := tx.Model(&Comment{}).Where("user_id = ? AND created_at > ?", u.ID, time.Now().Add(-30*time.Second)).Count(&recent).Error; err != nil {
@@ -111,6 +129,10 @@ func (h *Handler) CreateComment(c *gin.Context) {
 		response.Fail(c, 42901, "please wait before commenting again")
 		return
 	}
+	if errors.Is(err, errReplyTargetMissing) {
+		response.Fail(c, 40404, "reply target is unavailable")
+		return
+	}
 	if err != nil {
 		h.logger.Error("create comment", zap.Error(err))
 		response.Error(c)
@@ -118,6 +140,8 @@ func (h *Handler) CreateComment(c *gin.Context) {
 	}
 	response.SuccessMessage(c, "comment submitted for review", gin.H{"id": item.ID, "status": item.Status})
 }
+
+var errReplyTargetMissing = errors.New("reply target missing or not approved")
 
 func validURL(value string) bool {
 	parsed, err := url.Parse(value)

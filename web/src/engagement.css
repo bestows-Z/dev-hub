@@ -223,3 +223,10 @@
     flex-direction: column;
   }
 }
+.comment-reply-target{display:flex;align-items:center;gap:7px;margin-bottom:12px;padding:9px 12px;border-radius:8px;background:#eaf3ee;color:#42634c;font-size:12px}
+.comment-reply-target button{margin-left:auto;border:0;background:none;color:#516f5d;cursor:pointer;text-decoration:underline}
+.comment-reply-context{display:inline-block;margin-top:7px;padding:3px 8px;border-radius:5px;background:#edf4ee;color:#58745d;font-size:11px}
+.comment-reply-button{border:0;background:none;color:#438277;font-size:12px;font-weight:700;padding:8px 0 0;cursor:pointer}
+.comment-reply-button:hover{text-decoration:underline}
+:root[data-theme='night'] .comment-reply-target,:root[data-theme='night'] .comment-reply-context{background:#284537;color:#d5e9d4}
+:root[data-theme='night'] .comment-reply-button{color:#9bd6bd}

@@ -1,11 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, MessageCircle, Send } from 'lucide-react'
 import { ApiError, api, formatDate, type Page } from './api'
 import { authChanged, clearSession, readToken, readUser, type AuthUser } from './session'
 import './engagement.css'
 
-type Comment = { id: number; body: string; username: string; created_at: string }
+type Comment = { id: number; body: string; username: string; reply_to_id: number | null; reply_to_username: string; created_at: string }
 
 function useVisitor() {
   const [user, setUser] = useState<AuthUser | null>(readUser)
@@ -22,6 +22,8 @@ export function Comments({ slug }: { slug: string }) {
   const [page, setPage] = useState(1)
   const [comments, setComments] = useState<Page<Comment> | null>(null)
   const [body, setBody] = useState('')
+  const [replyTo, setReplyTo] = useState<Comment | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
@@ -50,9 +52,10 @@ export function Comments({ slug }: { slug: string }) {
       await api(`/articles/${encodeURIComponent(slug)}/comments`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${readToken()}` },
-        body: JSON.stringify({ body: body.trim() }),
+        body: JSON.stringify({ body: body.trim(), reply_to_id: replyTo?.id || null }),
       })
       setBody('')
+      setReplyTo(null)
       setNotice('评论已提交，审核通过后会显示在这里。')
     } catch (failure) {
       if (failure instanceof ApiError && failure.status === 401) clearSession()
@@ -80,8 +83,10 @@ export function Comments({ slug }: { slug: string }) {
           <label className="sr-only" htmlFor="comment-body">
             评论内容
           </label>
+          {replyTo && <div className="comment-reply-target">正在回复 <strong>{replyTo.username}</strong><button type="button" onClick={() => setReplyTo(null)}>取消回复</button></div>}
           <textarea
             id="comment-body"
+            ref={textareaRef}
             value={body}
             onChange={(event) => setBody(event.target.value)}
             minLength={3}
@@ -124,7 +129,9 @@ export function Comments({ slug }: { slug: string }) {
                   <strong>{comment.username}</strong>
                   <time>{formatDate(comment.created_at)}</time>
                 </div>
+                {comment.reply_to_id && <span className="comment-reply-context">回复 {comment.reply_to_username || '已删除的评论'}</span>}
                 <p>{comment.body}</p>
+                {user && <button className="comment-reply-button" type="button" onClick={() => { setReplyTo(comment); textareaRef.current?.focus(); textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }}>回复</button>}
               </div>
             </article>
           ))}
