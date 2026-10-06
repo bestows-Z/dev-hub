@@ -19,6 +19,7 @@ import (
 	httprouter "github.com/bestows-Z/dev-hub/backend/internal/http/router"
 	pg "github.com/bestows-Z/dev-hub/backend/internal/platform/postgres"
 	"github.com/bestows-Z/dev-hub/backend/internal/project"
+	"github.com/bestows-Z/dev-hub/backend/internal/search"
 	"github.com/bestows-Z/dev-hub/backend/internal/storage"
 	"github.com/bestows-Z/dev-hub/backend/internal/store"
 	"github.com/bestows-Z/dev-hub/backend/internal/user"
@@ -74,7 +75,15 @@ func main() {
 		userService,
 		logger,
 	)
-	contentHandler := content.NewHandler(content.NewRepository(postgresClient.DB), logger)
+	searchClient := search.New(cfg.Search.URL)
+	searchCtx, searchCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	if err := searchClient.Rebuild(searchCtx, postgresClient.DB); err != nil {
+		logger.Warn("article search index unavailable; using database search", zap.Error(err))
+	} else {
+		logger.Info("article search index ready", zap.String("elasticsearch", searchClient.URL()))
+	}
+	searchCancel()
+	contentHandler := content.NewHandler(content.NewSearchRepository(postgresClient.DB, searchClient), logger)
 	storeHandler := store.NewHandler(store.NewRepository(postgresClient.DB), logger)
 	projectHandler := project.NewHandler(project.NewRepository(postgresClient.DB), logger)
 	objectStore, err := storage.New(cfg.Storage)
@@ -91,6 +100,7 @@ func main() {
 	previewHandler := project.NewPreviewHandler(postgresClient.DB, objectStore, logger)
 	runtimeHandler := project.NewRuntimeHandler(postgresClient.DB, logger)
 	adminHandler := admin.NewHandler(postgresClient.DB, objectStore, logger)
+	adminHandler.SetArticleIndex(searchClient)
 	assistantHandler := assistant.NewHandler(postgresClient.DB, cfg.Assistant, logger)
 	assistantHandler.SetRateLimiter(assistant.NewRedisRateLimiter(redisClient))
 	engagementHandler := engagement.NewHandler(postgresClient.DB, logger)

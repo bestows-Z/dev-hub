@@ -7,6 +7,7 @@ import (
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type articleInput struct {
@@ -65,6 +66,7 @@ func (h *Handler) CreateArticle(c *gin.Context) {
 		h.failure(c, "create article", err)
 		return
 	}
+	h.syncArticle(c, article)
 	response.Success(c, article)
 }
 
@@ -106,6 +108,7 @@ func (h *Handler) UpdateArticle(c *gin.Context) {
 		h.failure(c, "update article", err)
 		return
 	}
+	h.syncArticle(c, article)
 	response.Success(c, article)
 }
 
@@ -123,7 +126,23 @@ func (h *Handler) DeleteArticle(c *gin.Context) {
 		response.Fail(c, 40400, "record not found")
 		return
 	}
+	if h.index != nil {
+		if err := h.index.DeleteArticle(c.Request.Context(), id); err != nil {
+			h.index.Disable()
+			h.logger.Warn("delete article from search index", zap.Error(err))
+		}
+	}
 	response.Success(c, gin.H{"deleted": true})
+}
+
+func (h *Handler) syncArticle(c *gin.Context, article content.Article) {
+	if h.index == nil {
+		return
+	}
+	if err := h.index.SyncArticle(c.Request.Context(), article); err != nil {
+		h.index.Disable()
+		h.logger.Warn("sync article search index", zap.Error(err))
+	}
 }
 
 type linkInput struct {

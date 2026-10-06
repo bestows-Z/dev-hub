@@ -1,12 +1,14 @@
 package admin
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/bestows-Z/dev-hub/backend/internal/content"
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
 	"github.com/bestows-Z/dev-hub/backend/internal/storage"
 	"github.com/gin-gonic/gin"
@@ -18,11 +20,20 @@ type Handler struct {
 	db     *gorm.DB
 	logger *zap.Logger
 	store  *storage.Store
+	index  ArticleIndex
+}
+
+type ArticleIndex interface {
+	SyncArticle(context.Context, content.Article) error
+	DeleteArticle(context.Context, uint64) error
+	Disable()
 }
 
 func NewHandler(db *gorm.DB, store *storage.Store, logger *zap.Logger) *Handler {
 	return &Handler{db: db, store: store, logger: logger}
 }
+
+func (h *Handler) SetArticleIndex(index ArticleIndex) { h.index = index }
 
 var slugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 

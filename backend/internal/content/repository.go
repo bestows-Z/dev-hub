@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"gorm.io/gorm"
@@ -19,11 +20,43 @@ type Repository interface {
 	ListLinks(context.Context) ([]FriendLink, error)
 }
 
-type repository struct{ db *gorm.DB }
+type ArticleSearch interface {
+	Ready() bool
+	Disable()
+	Search(context.Context, ArticleFilter, int, int) ([]uint64, int64, error)
+}
+
+type repository struct {
+	db     *gorm.DB
+	search ArticleSearch
+}
 
 func NewRepository(db *gorm.DB) Repository { return &repository{db: db} }
 
+func NewSearchRepository(db *gorm.DB, search ArticleSearch) Repository {
+	return &repository{db: db, search: search}
+}
+
 func (r *repository) ListArticles(ctx context.Context, filter ArticleFilter, limit, offset int) ([]Article, int64, error) {
+	if strings.TrimSpace(filter.Search) != "" && r.search != nil && r.search.Ready() {
+		ids, total, err := r.search.Search(ctx, filter, limit, offset)
+		if err == nil {
+			if len(ids) == 0 {
+				return []Article{}, total, nil
+			}
+			var articles []Article
+			err = r.db.WithContext(ctx).Where("id IN ? AND status = ?", ids, "published").Find(&articles).Error
+			if err == nil && len(articles) == len(ids) {
+				position := make(map[uint64]int, len(ids))
+				for index, id := range ids {
+					position[id] = index
+				}
+				sort.Slice(articles, func(i, j int) bool { return position[articles[i].ID] < position[articles[j].ID] })
+				return articles, total, nil
+			}
+		}
+		r.search.Disable()
+	}
 	query := r.db.WithContext(ctx).Model(&Article{}).Where("status = ?", "published")
 	if search := strings.TrimSpace(filter.Search); search != "" {
 		like := "%" + search + "%"
