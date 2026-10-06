@@ -49,6 +49,44 @@ tags:
 
 paths:
 
+  /api/v1/admin/analytics:
+    get:
+      tags: [Admin]
+      summary: 最近七天匿名页面访问统计
+      description: 仅统计成功打开的文章、商品详情和本站项目预览；通过 RabbitMQ 异步写入 MongoDB，不记录访客 IP。按北京时间分日，记录保留 180 天。
+      operationId: adminAnalytics
+      security: [{ BearerAuth: [] }]
+      responses:
+        "200":
+          description: 当 MongoDB 不可用时返回非零业务错误码
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string, example: success }
+                  data:
+                    type: object
+                    properties:
+                      today: { type: integer, example: 12 }
+                      last_7_days: { type: integer, example: 86 }
+                      daily:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            day: { type: string, format: date }
+                            count: { type: integer }
+                      top_pages:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            kind: { type: string, enum: [article, product, project] }
+                            slug: { type: string }
+                            count: { type: integer }
+
   /api/v1/assistant/chat:
     post:
       tags: [Assistant]

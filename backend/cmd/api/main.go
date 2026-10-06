@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bestows-Z/dev-hub/backend/internal/admin"
+	"github.com/bestows-Z/dev-hub/backend/internal/analytics"
 	"github.com/bestows-Z/dev-hub/backend/internal/assistant"
 	"github.com/bestows-Z/dev-hub/backend/internal/auth"
 	"github.com/bestows-Z/dev-hub/backend/internal/config"
@@ -104,7 +105,36 @@ func main() {
 	assistantHandler := assistant.NewHandler(postgresClient.DB, cfg.Assistant, logger)
 	assistantHandler.SetRateLimiter(assistant.NewRedisRateLimiter(redisClient))
 	engagementHandler := engagement.NewHandler(postgresClient.DB, logger)
-	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler, previewHandler, runtimeHandler, adminHandler, assistantHandler, engagementHandler)
+	analyticsCtx, stopAnalytics := context.WithCancel(context.Background())
+	defer stopAnalytics()
+	var analyticsStore *analytics.Store
+	var analyticsBroker *analytics.Broker
+	setupCtx, setupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	analyticsStore, err = analytics.NewStore(setupCtx, cfg.Analytics)
+	setupCancel()
+	if err != nil {
+		logger.Warn("visitor analytics storage unavailable", zap.Error(err))
+	} else {
+		defer func() {
+			closeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = analyticsStore.Close(closeCtx)
+		}()
+		analyticsBroker, err = analytics.NewBroker(cfg.Analytics, logger)
+		if err != nil {
+			logger.Warn("visitor analytics queue unavailable", zap.Error(err))
+		} else {
+			defer analyticsBroker.Close()
+			go analyticsBroker.RunPublisher(analyticsCtx)
+			go func() {
+				if err := analyticsBroker.RunConsumer(analyticsCtx, analyticsStore); err != nil {
+					logger.Warn("visitor analytics worker stopped", zap.Error(err))
+				}
+			}()
+		}
+	}
+	analyticsHandler := analytics.NewHandler(analyticsStore, logger)
+	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler, previewHandler, runtimeHandler, adminHandler, assistantHandler, engagementHandler, analyticsHandler, analyticsBroker)
 	address := fmt.Sprintf(
 		"%s:%d",
 		cfg.HTTP.Host,
@@ -156,6 +186,7 @@ func main() {
 			zap.Error(err),
 		)
 	}
+	stopAnalytics()
 	if err := postgresClient.Close(); err != nil {
 		logger.Error(
 			"close postgres failed",

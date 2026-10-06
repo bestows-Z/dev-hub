@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bestows-Z/dev-hub/backend/internal/admin"
+	"github.com/bestows-Z/dev-hub/backend/internal/analytics"
 	"github.com/bestows-Z/dev-hub/backend/internal/assistant"
 	"github.com/bestows-Z/dev-hub/backend/internal/auth"
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
@@ -18,10 +19,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler, previewHandler *project.PreviewHandler, runtimeHandler *project.RuntimeHandler, adminHandler *admin.Handler, assistantHandler *assistant.Handler, engagementHandler *engagement.Handler) *gin.Engine {
+func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler, previewHandler *project.PreviewHandler, runtimeHandler *project.RuntimeHandler, adminHandler *admin.Handler, assistantHandler *assistant.Handler, engagementHandler *engagement.Handler, analyticsHandler *analytics.Handler, analyticsBroker *analytics.Broker) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
+	r.Use(analytics.Tracker(analyticsBroker))
 	v1 := r.Group("/api/v1")
 	v1.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -101,5 +103,6 @@ func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, co
 	adminGroup.POST("/projects/:id/runtime-bundle", adminHandler.UploadRuntimeBundle)
 	adminGroup.GET("/orders", adminHandler.ListOrders)
 	adminGroup.PATCH("/orders/:id/status", adminHandler.UpdateOrderStatus)
+	adminGroup.GET("/analytics", analyticsHandler.Summary)
 	return r
 }

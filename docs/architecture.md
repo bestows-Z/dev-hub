@@ -11,7 +11,7 @@
 
 ## 技术选择
 
-延续现有 Go 1.25 + Gin + GORM + PostgreSQL。前端采用 React + TypeScript + Vite。MinIO 存项目 ZIP、静态产物和头像。Redis 使用原子计数及自动过期管理助手每 IP 每分钟 20 次的共享限流，多实例共用同一额度。Elasticsearch 为已发布文章提供中英文全文检索和相关度排序；PostgreSQL 仍是事实来源，启动时重建索引，管理文章时同步更新索引，检索服务不可用时回退数据库搜索。MongoDB 和 RabbitMQ 已包含在本地 Docker 编排中，但业务尚未接入。
+延续现有 Go 1.25 + Gin + GORM + PostgreSQL。前端采用 React + TypeScript + Vite。MinIO 存项目 ZIP、静态产物和头像。Redis 使用原子计数及自动过期管理助手每 IP 每分钟 20 次的共享限流，多实例共用同一额度。Elasticsearch 为已发布文章提供中英文全文检索和相关度排序；PostgreSQL 仍是事实来源，启动时重建索引，管理文章时同步更新索引，检索服务不可用时回退数据库搜索。RabbitMQ 接收匿名页面访问事件，消费者将事件写入 MongoDB；后台总览可查看最近七天的每日访问量与热门页面。事件没有访客 IP，并在 180 天后由 MongoDB 自动清理。
 
 ## 视觉方向
 

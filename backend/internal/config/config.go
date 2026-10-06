@@ -14,6 +14,7 @@ type Config struct {
 	Postgres  PostgresConfig
 	Redis     RedisConfig
 	Search    SearchConfig
+	Analytics AnalyticsConfig
 	Auth      AuthConfig
 	Assistant AssistantConfig
 	Storage   StorageConfig
@@ -27,6 +28,15 @@ type RedisConfig struct {
 }
 
 type SearchConfig struct{ URL string }
+
+type AnalyticsConfig struct {
+	MongoAddr      string
+	MongoUser      string
+	MongoPassword  string
+	RabbitAddr     string
+	RabbitUser     string
+	RabbitPassword string
+}
 
 type AssistantConfig struct {
 	APIBaseURL string
@@ -106,6 +116,12 @@ func Load() (*Config, error) {
 		"REDIS_ADDR",
 		"REDIS_PASSWORD",
 		"ELASTICSEARCH_URL",
+		"MONGO_ADDR",
+		"MONGO_ROOT_USERNAME",
+		"MONGO_ROOT_PASSWORD",
+		"RABBITMQ_ADDR",
+		"RABBITMQ_USERNAME",
+		"RABBITMQ_PASSWORD",
 		"AUTH_JWT_SECRET",
 		"ASSISTANT_API_BASE_URL",
 		"ASSISTANT_API_KEY",
@@ -141,6 +157,8 @@ func Load() (*Config, error) {
 	v.SetDefault("POSTGRES_MAX_IDLE_CONNS", 10)
 	v.SetDefault("REDIS_ADDR", "127.0.0.1:6379")
 	v.SetDefault("ELASTICSEARCH_URL", "http://127.0.0.1:9200")
+	v.SetDefault("MONGO_ADDR", "127.0.0.1:27017")
+	v.SetDefault("RABBITMQ_ADDR", "127.0.0.1:5672")
 	v.SetDefault("MINIO_ENDPOINT", "127.0.0.1:9000")
 	v.SetDefault("MINIO_BUCKET", "devhub-projects")
 
@@ -171,6 +189,10 @@ func Load() (*Config, error) {
 		Auth:   AuthConfig{JWTSecret: v.GetString("AUTH_JWT_SECRET")},
 		Redis:  RedisConfig{Addr: v.GetString("REDIS_ADDR"), Password: v.GetString("REDIS_PASSWORD")},
 		Search: SearchConfig{URL: v.GetString("ELASTICSEARCH_URL")},
+		Analytics: AnalyticsConfig{
+			MongoAddr: v.GetString("MONGO_ADDR"), MongoUser: v.GetString("MONGO_ROOT_USERNAME"), MongoPassword: v.GetString("MONGO_ROOT_PASSWORD"),
+			RabbitAddr: v.GetString("RABBITMQ_ADDR"), RabbitUser: v.GetString("RABBITMQ_USERNAME"), RabbitPassword: v.GetString("RABBITMQ_PASSWORD"),
+		},
 		Assistant: AssistantConfig{
 			APIBaseURL: v.GetString("ASSISTANT_API_BASE_URL"),
 			APIKey:     v.GetString("ASSISTANT_API_KEY"),

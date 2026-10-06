@@ -42,6 +42,12 @@ function isEditableKind(kind: Kind): kind is EditableKind {
   return kind === 'articles' || kind === 'projects' || kind === 'products' || kind === 'links'
 }
 type Item = Record<string, unknown> & { id: number }
+type AnalyticsSummary = {
+  today: number
+  last_7_days: number
+  daily: { day: string; count: number }[]
+  top_pages: { kind: string; slug: string; count: number }[]
+}
 type Field = {
   key: string
   label: string
@@ -183,6 +189,7 @@ export default function Admin() {
   const [searchInput, setSearchInput] = useState('')
   const [reviewStatus, setReviewStatus] = useState('pending')
   const [stats, setStats] = useState<Partial<Record<ManagedKind, number>>>({})
+  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null)
   const [previewMarkdown, setPreviewMarkdown] = useState(false)
   const [form, setForm] = useState<Record<string, unknown> | null>(null)
   const [busy, setBusy] = useState(false)
@@ -239,6 +246,7 @@ export default function Admin() {
 
   const loadStats = useCallback(async () => {
     if (!token || !authorized) return
+    void request<AnalyticsSummary>('/admin/analytics').then(setAnalytics).catch(() => setAnalytics(null))
     const results = await Promise.allSettled(
       managedKinds.map((entry) => {
         const path = entry === 'applications' ? 'link-applications' : entry
@@ -653,6 +661,24 @@ export default function Admin() {
                   </button>
                 )
               })}
+            </div>
+            <div className="admin-analytics-grid">
+              <section className="admin-overview-card admin-analytics-card">
+                <div className="admin-overview-card-title"><h2>最近 7 天访问</h2><span>匿名页面浏览</span></div>
+                <div className="admin-analytics-numbers"><strong>{analytics?.last_7_days ?? '—'}</strong><span>总浏览 · 今日 {analytics?.today ?? '—'}</span></div>
+                <div className="admin-analytics-chart" aria-label="最近七天访问趋势">
+                  {Array.from({ length: 7 }, (_, index) => {
+                    const date = new Date(Date.now() - (6 - index) * 86400000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' })
+                    const count = analytics?.daily.find((entry) => entry.day === date)?.count ?? 0
+                    const highest = Math.max(1, ...(analytics?.daily.map((entry) => entry.count) ?? []))
+                    return <div key={date} className="admin-analytics-day" title={`${date} · ${count} 次`}><span><i style={{ height: `${Math.max(5, count / highest * 100)}%` }} /></span><small>{date.slice(5)}</small></div>
+                  })}
+                </div>
+              </section>
+              <section className="admin-overview-card admin-analytics-card">
+                <div className="admin-overview-card-title"><h2>热门页面</h2><span>最近 7 天</span></div>
+                {analytics?.top_pages.length ? analytics.top_pages.map((entry, index) => <div className="admin-popular-row" key={`${entry.kind}:${entry.slug}`}><em>{String(index + 1).padStart(2, '0')}</em><span><small>{entry.kind === 'article' ? '文章' : entry.kind === 'product' ? '商品' : '项目'}</small><strong>{entry.slug}</strong></span><b>{entry.count}</b></div>) : <p className="admin-analytics-empty">还没有访问记录。读者打开文章或预览项目后，这里会出现趋势。</p>}
+              </section>
             </div>
             <div className="admin-overview-columns">
               <section className="admin-overview-card">
