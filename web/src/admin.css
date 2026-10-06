@@ -1220,6 +1220,8 @@
   text-align: center;
   font-size: 11px;
 }
+.admin-login-note a { color: #2c7654; font-weight: 700; }
+.admin-login-note a:hover { text-decoration: underline; }
 @media (max-width: 730px) {
   .admin-login-card {
     grid-template-columns: 1fr;

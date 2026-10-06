@@ -301,7 +301,7 @@ body {
   flex-direction: row-reverse;
 }
 .article-card:hover {
-  transform: translateY(-3px);
+  transform: none;
   border-color: #e0e8e7;
   box-shadow: 0 10px 24px #25363818;
 }
@@ -557,7 +557,7 @@ body {
 }
 .project-card:hover,
 .product-card:hover {
-  transform: translateY(-3px);
+  transform: none;
   border-color: #d8e8e5;
 }
 .project-cover,
@@ -1232,9 +1232,15 @@ body {
 .project-card,
 .product-card {
   transition:
-    transform 0.28s cubic-bezier(0.2, 0.7, 0.25, 1),
     box-shadow 0.28s,
     border-color 0.28s;
+}
+.card-enter {
+  animation: card-enter 0.45s ease-out both;
+}
+@keyframes card-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .article-card {
   position: relative;
@@ -1251,13 +1257,6 @@ body {
 }
 .article-card:hover::after {
   width: 100%;
-}
-.article-card.reveal:hover,
-.project-card.reveal:hover,
-.product-card.reveal:hover {
-  animation: none;
-  opacity: 1;
-  transform: translateY(-3px);
 }
 .article-visual {
   background-size: cover;

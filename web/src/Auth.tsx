@@ -15,7 +15,7 @@ import './auth.css'
 
 function AuthShell({ children, mode }: { children: ReactNode; mode: 'login' | 'register' }) {
   return (
-    <div className="auth-page container">
+    <div className="auth-page container" data-mode={mode}>
       <div className="auth-scene" aria-hidden="true">
         <span className="auth-scene-ring" />
         <span className="auth-scene-ring second" />
@@ -27,8 +27,8 @@ function AuthShell({ children, mode }: { children: ReactNode; mode: 'login' | 'r
       </div>
       <div className="auth-paper">
         <nav className="auth-tabs" aria-label="账户入口">
-          <Link to="/login" className={mode === 'login' ? 'active' : ''} aria-current={mode === 'login' ? 'page' : undefined}>登录</Link>
-          <Link to="/register" className={mode === 'register' ? 'active' : ''} aria-current={mode === 'register' ? 'page' : undefined}>注册</Link>
+          <Link to="/login" viewTransition className={mode === 'login' ? 'active' : ''} aria-current={mode === 'login' ? 'page' : undefined}>登录</Link>
+          <Link to="/register" viewTransition className={mode === 'register' ? 'active' : ''} aria-current={mode === 'register' ? 'page' : undefined}>注册</Link>
         </nav>
         {children}
       </div>
@@ -124,7 +124,7 @@ export function Login() {
         </button>
       </form>
       <p className="auth-switch">
-        还没有账号？<Link to="/register">去注册</Link>
+        还没有账号？<Link to="/register" viewTransition>去注册</Link>
       </p>
     </AuthShell>
   )
@@ -233,7 +233,7 @@ export function Register() {
         </button>
       </form>
       <p className="auth-switch">
-        已经有账号？<Link to="/login">去登录</Link>
+        已经有账号？<Link to="/login" viewTransition>去登录</Link>
       </p>
     </AuthShell>
   )

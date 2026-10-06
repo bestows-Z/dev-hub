@@ -54,6 +54,18 @@
   border-radius: 0 15px 15px 0;
   background: #fff;
   box-shadow: 0 12px 36px #2b444011;
+  min-height: 700px;
+}
+.auth-page[data-mode] .auth-paper > :not(.auth-tabs) {
+  animation: auth-content-enter 0.28s ease-out both;
+}
+@keyframes auth-content-enter {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.3s;
 }
 .auth-overline {
   color: #318e87;
@@ -494,6 +506,11 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .auth-page[data-mode] .auth-paper > :not(.auth-tabs),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
   .auth-submit,
   .account-admin svg {
     transition: none;

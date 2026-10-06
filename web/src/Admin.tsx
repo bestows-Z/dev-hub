@@ -24,6 +24,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
+import { Link } from 'react-router-dom'
 import remarkGfm from 'remark-gfm'
 import { ApiError, api, formatDate, formatPrice, type Page } from './api'
 import { clearSession, readUser, saveSession, type LoginResult } from './session'
@@ -573,7 +574,7 @@ export default function Admin() {
                 {message}
               </span>
             )}
-            <span className="admin-login-note">普通读者请使用网站顶部的登录入口。</span>
+            <span className="admin-login-note">读者可以在网站登录。<Link to="/login">前往登录</Link> · <Link to="/">返回网站</Link></span>
           </form>
         </div>
       </div>

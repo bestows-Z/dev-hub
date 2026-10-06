@@ -121,7 +121,6 @@ function Layout({ children }: { children: ReactNode }) {
     ['/shop', '商店'],
     ['/gallery', '相册'],
     ['/links', '友链'],
-    ['/admin', '管理'],
   ]
   return (
     <div className="app-shell">
@@ -275,7 +274,7 @@ function ArticleCard({ article, index = 0 }: { article: ArticleSummary; index?: 
   return (
     <Link
       to={`/articles/${article.slug}`}
-      className={`article-card reveal${index === 0 ? ' article-featured' : ''}`}
+      className={`article-card card-enter${index === 0 ? ' article-featured' : ''}`}
       style={{ animationDelay: `${index * 70}ms` }}
     >
       <div
@@ -680,7 +679,7 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
   }
   function closePreview() { previewRequest.current?.abort(); dialogRef.current?.close() }
   return (
-    <article className="project-card reveal" style={{ animationDelay: `${index * 65}ms` }}>
+    <article className="project-card card-enter" style={{ animationDelay: `${index * 65}ms` }}>
       <div
         className="project-cover"
         style={project.cover_url ? { backgroundImage: `url(${project.cover_url})` } : undefined}
@@ -788,7 +787,7 @@ function ProductCard({ product, index = 0 }: { product: Product; index?: number 
   return (
     <Link
       to={`/shop/${product.slug}`}
-      className="product-card reveal"
+      className="product-card card-enter"
       style={{ animationDelay: `${index * 65}ms` }}
     >
       <div
@@ -1362,6 +1361,14 @@ function NotFound() {
 }
 
 export default function App() {
+  const location = useLocation()
+  if (location.pathname.startsWith('/admin')) {
+    return (
+      <Suspense fallback={<div className="loading-state">正在打开管理台…</div>}>
+        <Admin />
+      </Suspense>
+    )
+  }
   return (
     <Layout>
       <Routes>
@@ -1379,14 +1386,6 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/account" element={<Account />} />
-        <Route
-          path="/admin"
-          element={
-            <Suspense fallback={<div className="loading-state">正在打开管理台…</div>}>
-              <Admin />
-            </Suspense>
-          }
-        />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
