@@ -7,6 +7,7 @@ type Role int16
 const (
 	RoleAdmin Role = iota + 1
 	RoleUser
+	RoleAuthor
 )
 
 type Status int16

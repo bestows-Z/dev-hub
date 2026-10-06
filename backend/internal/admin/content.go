@@ -1,13 +1,16 @@
 package admin
 
 import (
+	"encoding/json"
 	"net/url"
 	"time"
 
+	"github.com/bestows-Z/dev-hub/backend/internal/auth"
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type articleInput struct {
@@ -22,8 +25,17 @@ type articleInput struct {
 }
 
 func (h *Handler) ListArticles(c *gin.Context) {
+	h.listArticles(c, false)
+}
+
+func (h *Handler) ListMyArticles(c *gin.Context) { h.listArticles(c, true) }
+
+func (h *Handler) listArticles(c *gin.Context, own bool) {
 	p, size := page(c)
 	q := h.db.WithContext(c.Request.Context()).Model(&content.Article{})
+	if own {
+		q = q.Where("author_id = ?", auth.CurrentUser(c).ID)
+	}
 	if pattern := searchPattern(c); pattern != "" {
 		q = q.Where("title ILIKE ? OR slug ILIKE ? OR excerpt ILIKE ?", pattern, pattern, pattern)
 	}
@@ -41,6 +53,12 @@ func (h *Handler) ListArticles(c *gin.Context) {
 }
 
 func (h *Handler) CreateArticle(c *gin.Context) {
+	h.createArticle(c)
+}
+
+func (h *Handler) CreateMyArticle(c *gin.Context) { h.createArticle(c) }
+
+func (h *Handler) createArticle(c *gin.Context) {
 	var input articleInput
 	if err := c.ShouldBindJSON(&input); err != nil || !validSlug(input.Slug) || clean(input.Title) == "" || clean(input.BodyMD) == "" {
 		response.Fail(c, response.CodeInvalidParams, "invalid article details")
@@ -58,6 +76,9 @@ func (h *Handler) CreateArticle(c *gin.Context) {
 		category = "tech"
 	}
 	article := content.Article{Slug: input.Slug, Title: clean(input.Title), Excerpt: clean(input.Excerpt), BodyMD: input.BodyMD, CoverURL: clean(input.CoverURL), Category: category, Tags: input.Tags, Status: status}
+	if current := auth.CurrentUser(c); current != nil {
+		article.AuthorID = &current.ID
+	}
 	if article.Tags == nil {
 		article.Tags = []string{}
 	}
@@ -74,6 +95,12 @@ func (h *Handler) CreateArticle(c *gin.Context) {
 }
 
 func (h *Handler) UpdateArticle(c *gin.Context) {
+	h.updateArticle(c, false)
+}
+
+func (h *Handler) UpdateMyArticle(c *gin.Context) { h.updateArticle(c, true) }
+
+func (h *Handler) updateArticle(c *gin.Context, own bool) {
 	id, ok := parseID(c)
 	if !ok {
 		return
@@ -84,7 +111,11 @@ func (h *Handler) UpdateArticle(c *gin.Context) {
 		return
 	}
 	var article content.Article
-	if err := h.db.WithContext(c.Request.Context()).First(&article, id).Error; err != nil {
+	query := h.db.WithContext(c.Request.Context())
+	if own {
+		query = query.Where("author_id = ?", auth.CurrentUser(c).ID)
+	}
+	if err := query.First(&article, id).Error; err != nil {
 		h.failure(c, "find article", err)
 		return
 	}
@@ -110,7 +141,16 @@ func (h *Handler) UpdateArticle(c *gin.Context) {
 	if status == "draft" {
 		article.PublishedAt = nil
 	}
-	if err := h.db.WithContext(c.Request.Context()).Save(&article).Error; err != nil {
+	tagsJSON, err := json.Marshal(article.Tags)
+	if err != nil {
+		h.failure(c, "encode article tags", err)
+		return
+	}
+	update := h.db.WithContext(c.Request.Context()).Model(&content.Article{}).Where("id = ?", id)
+	if own {
+		update = update.Where("author_id = ?", auth.CurrentUser(c).ID)
+	}
+	if err := update.Updates(map[string]any{"slug": article.Slug, "title": article.Title, "excerpt": article.Excerpt, "body_md": article.BodyMD, "cover_url": article.CoverURL, "tags": gorm.Expr("?::jsonb", string(tagsJSON)), "status": article.Status, "category": article.Category, "published_at": article.PublishedAt}).Error; err != nil {
 		h.failure(c, "update article", err)
 		return
 	}
@@ -119,11 +159,21 @@ func (h *Handler) UpdateArticle(c *gin.Context) {
 }
 
 func (h *Handler) DeleteArticle(c *gin.Context) {
+	h.deleteArticle(c, false)
+}
+
+func (h *Handler) DeleteMyArticle(c *gin.Context) { h.deleteArticle(c, true) }
+
+func (h *Handler) deleteArticle(c *gin.Context, own bool) {
 	id, ok := parseID(c)
 	if !ok {
 		return
 	}
-	result := h.db.WithContext(c.Request.Context()).Delete(&content.Article{}, id)
+	query := h.db.WithContext(c.Request.Context()).Where("id = ?", id)
+	if own {
+		query = query.Where("author_id = ?", auth.CurrentUser(c).ID)
+	}
+	result := query.Delete(&content.Article{})
 	if result.Error != nil {
 		h.failure(c, "delete article", result.Error)
 		return

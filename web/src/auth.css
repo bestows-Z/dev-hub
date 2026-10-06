@@ -585,3 +585,9 @@
 :root[data-theme='night'] .account-avatar { border-color: #1f2e28; }
 @media (max-width: 760px) { .auth-scene-ring { width: 220px; height: 220px; right: -45px; top: -30px; } .auth-scene-ring.second { display: none; } .auth-tabs { margin-bottom: 18px; } .account-card { padding-top: 145px; } .account-avatar { width: 70px; height: 70px; margin-top: -42px; } }
 @media (prefers-reduced-motion: reduce) { .auth-scene-ring { animation: none; } .auth-submit svg, .account-edit, .account-avatar-editor { transition: none; } }
+.account-author{margin:24px 0 34px;padding:34px;border:1px solid #dce7d9;border-radius:17px;background:linear-gradient(120deg,#fcfdf8,#edf5ed)}
+.account-author form{display:grid;gap:11px;max-width:720px}.account-author form label{font-size:13px;font-weight:700;color:#365942}.account-author textarea{width:100%;border:1px solid #cddccc;border-radius:9px;background:#fff;padding:13px 15px;font:inherit;color:#25382a;resize:vertical}.account-author textarea:focus{outline:2px solid #83b991;outline-offset:2px}.account-author form button,.account-author-enter{justify-self:start;display:inline-flex;align-items:center;gap:8px;border:0;border-radius:8px;background:#285e42;color:white;text-decoration:none;padding:12px 17px;font-weight:700;cursor:pointer}.account-author-status{color:#5d725e;font-size:13px}.account-author form button:disabled{opacity:.6}
+:root[data-theme='night'] .account-author{background:linear-gradient(120deg,#1c3025,#253f2e);border-color:#47604d;color:#eff5e8}
+:root[data-theme='night'] .account-author .account-section-head h2,:root[data-theme='night'] .account-author form label{color:#f2f7eb}
+:root[data-theme='night'] .account-author textarea{background:#183023;color:#f3f8ed;border-color:#54705a}
+:root[data-theme='night'] .account-author-status{color:#b7d1b7}

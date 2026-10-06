@@ -22,6 +22,7 @@ type MyOrder = {
   status: string
   created_at: string
 }
+type AuthorApplication = { id: number; reason: string; status: 'pending' | 'approved' | 'rejected'; created_at: string }
 
 function AuthShell({ children, mode }: { children: ReactNode; mode: 'login' | 'register' }) {
   return (
@@ -272,6 +273,10 @@ export function Account() {
   const [ordersPage, setOrdersPage] = useState(1)
   const [ordersError, setOrdersError] = useState('')
   const [ordersBusy, setOrdersBusy] = useState<number | null>(null)
+  const [authorApplications, setAuthorApplications] = useState<AuthorApplication[]>([])
+  const [authorReason, setAuthorReason] = useState('')
+  const [authorMessage, setAuthorMessage] = useState('')
+  const [authorBusy, setAuthorBusy] = useState(false)
   const mounted = useRef(false)
   const draftUserID = useRef<number | null>(null)
   const draftDirty = useRef(false)
@@ -326,6 +331,14 @@ export function Account() {
       .catch((failure) => { if (active) setOrdersError(failure instanceof Error ? failure.message : '订单加载失败') })
     return () => { active = false }
   }, [token, user?.id, ordersPage])
+  useEffect(() => {
+    if (!token || !user) return
+    let active = true
+    api<AuthorApplication[]>('/author-applications/mine', { headers: { Authorization: `Bearer ${token}` } })
+      .then((items) => { if (active) setAuthorApplications(items) })
+      .catch(() => {})
+    return () => { active = false }
+  }, [token, user?.id, retry])
   if (!token && !error) return <Navigate to="/login" replace />
   function logout() {
     clearSession()
@@ -439,6 +452,20 @@ export function Account() {
       setOrdersBusy(null)
     }
   }
+  async function applyAuthor(event: FormEvent) {
+    event.preventDefault()
+    if (!token || authorReason.trim().length < 10) { setAuthorMessage('请写至少 10 个字，介绍你想分享的内容。'); return }
+    setAuthorBusy(true)
+    setAuthorMessage('')
+    try {
+      await api('/author-applications', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ reason: authorReason.trim() }) })
+      const items = await api<AuthorApplication[]>('/author-applications/mine', { headers: { Authorization: `Bearer ${token}` } })
+      setAuthorApplications(items)
+      setAuthorReason('')
+      setAuthorMessage('申请已提交，审核结果会显示在这里。')
+    } catch (failure) { setAuthorMessage(failure instanceof Error ? failure.message : '申请提交失败') }
+    finally { setAuthorBusy(false) }
+  }
   return (
     <div className="account-page container">
       <span className="auth-overline">账户 / 我的资料</span>
@@ -459,7 +486,7 @@ export function Account() {
           {user?.bio && <p className="account-bio">{user.bio}</p>}
           {user && (
             <div className="account-meta">
-              <span>{user.role === 1 ? '站点管理员' : '读者'}</span>
+              <span>{user.role === 1 ? '站点管理员' : user.role === 3 ? '本站作者' : '读者'}</span>
               <span>加入于 {formatDate(user.created_at)}</span>
             </div>
           )}
@@ -591,6 +618,14 @@ export function Account() {
           </div>)}
         </div>}
         {orders && orders.total > 10 && <div className="account-order-pages"><button type="button" disabled={ordersPage <= 1} onClick={() => setOrdersPage((page) => page - 1)}>上一页</button><span>{ordersPage} / {Math.ceil(orders.total / 10)}</span><button type="button" disabled={ordersPage >= Math.ceil(orders.total / 10)} onClick={() => setOrdersPage((page) => page + 1)}>下一页</button></div>}
+      </section>}
+      {user && !loading && !error && <section className="account-author" aria-labelledby="account-author-title">
+        <div className="account-section-head"><span>04 / WRITING</span><h2 id="account-author-title">我的创作</h2><p>通过审核后，你可以发布文章、管理自己的草稿和作品。</p></div>
+        {user.role === 1 || user.role === 3 ? <Link className="account-author-enter" to="/studio">进入写作台 <ArrowRight size={17} /></Link> : <>
+          {authorApplications[0] && <p className="account-author-status">最近申请：{({ pending: '等待审核', approved: '已通过，请刷新账户资料', rejected: '未通过，可再次申请' } as const)[authorApplications[0].status]} · {formatDate(authorApplications[0].created_at)}</p>}
+          {!authorApplications.some((item) => item.status === 'pending') && <form onSubmit={applyAuthor}><label htmlFor="author-reason">想在这里分享什么？</label><textarea id="author-reason" rows={4} maxLength={1000} minLength={10} required value={authorReason} onChange={(event) => setAuthorReason(event.target.value)} placeholder="介绍你准备写的主题，以及申请成为作者的原因" /><button type="submit" disabled={authorBusy}>{authorBusy ? '提交中…' : '申请成为作者'} <ArrowRight size={16} /></button></form>}
+          {authorMessage && <p role="status">{authorMessage}</p>}
+        </>}
       </section>}
       {error && token && (
         <button

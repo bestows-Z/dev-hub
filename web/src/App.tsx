@@ -48,6 +48,7 @@ import {
 
 const ArticleReading = lazy(() => import('./ArticleReading'))
 const Admin = lazy(() => import('./Admin'))
+const Studio = lazy(() => import('./Studio'))
 const Gallery = lazy(() => import('./Gallery'))
 type Remote<T> = { data: T | null; loading: boolean; error: string }
 const contactEmail = import.meta.env.VITE_CONTACT_EMAIL as string | undefined
@@ -1378,6 +1379,9 @@ export default function App() {
         <Admin />
       </Suspense>
     )
+  }
+  if (location.pathname.startsWith('/studio')) {
+    return <Suspense fallback={<div className="loading-state">正在打开写作台…</div>}><Studio /></Suspense>
   }
   return (
     <Layout>

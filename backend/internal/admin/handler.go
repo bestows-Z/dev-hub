@@ -8,10 +8,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bestows-Z/dev-hub/backend/internal/auth"
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
 	"github.com/bestows-Z/dev-hub/backend/internal/media"
 	"github.com/bestows-Z/dev-hub/backend/internal/storage"
+	"github.com/bestows-Z/dev-hub/backend/internal/user"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -89,7 +91,11 @@ func (h *Handler) requireCover(c *gin.Context, url, previous string) bool {
 		return false
 	}
 	var count int64
-	if err := h.db.WithContext(c.Request.Context()).Model(&media.Asset{}).Where("id = ?", id).Count(&count).Error; err != nil {
+	query := h.db.WithContext(c.Request.Context()).Model(&media.Asset{}).Where("id = ?", id)
+	if current := auth.CurrentUser(c); current != nil && current.Role != user.RoleAdmin {
+		query = query.Where("owner_id = ?", current.ID)
+	}
+	if err := query.Count(&count).Error; err != nil {
 		h.failure(c, "check cover image", err)
 		return false
 	}

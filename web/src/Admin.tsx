@@ -42,7 +42,8 @@ type Kind =
   | 'orders'
   | 'comments'
   | 'applications'
-type EditableKind = Exclude<Kind, 'overview' | 'orders' | 'comments' | 'applications'>
+  | 'author-applications'
+type EditableKind = Exclude<Kind, 'overview' | 'orders' | 'comments' | 'applications' | 'author-applications'>
 function isEditableKind(kind: Kind): kind is EditableKind {
   return kind === 'articles' || kind === 'projects' || kind === 'gallery' || kind === 'products' || kind === 'links'
 }
@@ -74,6 +75,7 @@ const tabs: {
   { kind: 'orders', label: '订单管理', icon: BarChart3, group: 'content' },
   { kind: 'comments', label: '评论审核', icon: MessageCircle, group: 'review' },
   { kind: 'applications', label: '友链申请', icon: Inbox, group: 'review' },
+  { kind: 'author-applications', label: '作者申请', icon: Edit3, group: 'review' },
 ]
 type ManagedKind = Exclude<Kind, 'overview'>
 const managedKinds: ManagedKind[] = [
@@ -85,6 +87,7 @@ const managedKinds: ManagedKind[] = [
   'orders',
   'comments',
   'applications',
+  'author-applications',
 ]
 const pageSize = 20
 function listKey(kind: Kind, page: number, reviewStatus: string, search: string, token: string) {
@@ -232,8 +235,8 @@ export default function Admin() {
     const sequence = ++requestSequence.current
     try {
       const path = kind === 'applications' ? 'link-applications' : kind
-      const statusQuery =
-        kind === 'comments' || kind === 'applications' ? `&status=${reviewStatus}` : ''
+	  const statusQuery =
+		kind === 'comments' || kind === 'applications' || kind === 'author-applications' ? `&status=${reviewStatus}` : ''
       const data = await request<Page<Item> | Item[]>(
         `/admin/${path}?page_size=${pageSize}&page=${page}${statusQuery}&q=${encodeURIComponent(search)}`,
       )
@@ -266,7 +269,7 @@ export default function Admin() {
     void request<AnalyticsSummary>('/admin/analytics').then(setAnalytics).catch(() => setAnalytics(null))
     const results = await Promise.allSettled(
       managedKinds.map((entry) => {
-        const path = entry === 'applications' ? 'link-applications' : entry
+		const path = entry === 'applications' ? 'link-applications' : entry
         return request<Page<Item> | Item[]>(`/admin/${path}?page_size=1`)
       }),
     )
@@ -433,7 +436,7 @@ export default function Admin() {
     setBusy(true)
     setMessage('')
     try {
-      const path = kind === 'applications' ? 'link-applications' : 'comments'
+      const path = kind === 'applications' ? 'link-applications' : kind === 'author-applications' ? 'author-applications' : 'comments'
       await request(`/admin/${path}/${item.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ status }),
@@ -652,7 +655,7 @@ export default function Admin() {
                     onClick={() => selectKind(tab.kind)}
                   >
                     <Icon size={17} /> <span>{tab.label}</span>
-                    {(tab.kind === 'comments' || tab.kind === 'applications') &&
+                    {(tab.kind === 'comments' || tab.kind === 'applications' || tab.kind === 'author-applications') &&
                       stats[tab.kind] !== undefined &&
                       stats[tab.kind] !== 0 && <em>{stats[tab.kind]}</em>}
                   </button>
@@ -763,7 +766,7 @@ export default function Admin() {
                   <h2>待处理</h2>
                   <span>读者互动</span>
                 </div>
-                {(['comments', 'applications'] as const).map((entry) => {
+                {(['comments', 'applications', 'author-applications'] as const).map((entry) => {
                   const tab = tabs.find((candidate) => candidate.kind === entry)!
                   const Icon = tab.icon
                   return (
@@ -867,7 +870,7 @@ export default function Admin() {
               </label>
               <button type="submit">搜索</button>
               </form>
-              {(kind === 'comments' || kind === 'applications') && (
+              {(kind === 'comments' || kind === 'applications' || kind === 'author-applications') && (
                 <select
                   aria-label="审核状态"
                   value={reviewStatus}
@@ -1022,7 +1025,7 @@ export default function Admin() {
                     <td className="admin-table-title" data-label="内容">
                       {kind === 'gallery' && item.status === 'published' && Boolean(item.image_url) && <img className="admin-gallery-thumb" src={String(item.image_url)} alt="" />}
                       <strong>{String(kind === 'orders' ? `${item.username || '历史订单'} · ${item.order_no || `#${item.id}`}` : item.title || item.name || item.article_title || item.username || `#${item.id}`)}</strong>
-                      <small>{String(kind === 'comments' ? item.body || '' : kind === 'orders' ? formatPrice(Number(item.total_cents || 0)) : item.description || item.excerpt || '')}</small>
+                      <small>{String(kind === 'comments' ? item.body || '' : kind === 'author-applications' ? item.reason || '' : kind === 'orders' ? formatPrice(Number(item.total_cents || 0)) : item.description || item.excerpt || '')}</small>
                     </td>
                     <td data-label="标识 / 联系" className="admin-table-identifier">{String(item.slug || item.location || item.url || item.email || item.username || `#${item.id}`)}</td>
                     <td data-label="状态">
@@ -1035,7 +1038,7 @@ export default function Admin() {
                     </td>
                     <td data-label="时间" className="admin-table-date">{item.created_at ? formatDate(String(item.created_at)) : '—'}</td>
                     <td data-label="操作"><div className="admin-row-actions">
-                      {(kind === 'comments' || kind === 'applications') &&
+                      {(kind === 'comments' || kind === 'applications' || kind === 'author-applications') &&
                       reviewStatus === 'pending' ? (
                         <>
                           <button

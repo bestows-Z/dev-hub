@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/bestows-Z/dev-hub/backend/internal/user"
+
 	"gorm.io/gorm"
 )
 
@@ -52,6 +54,9 @@ func (r *repository) ListArticles(ctx context.Context, filter ArticleFilter, lim
 					position[id] = index
 				}
 				sort.Slice(articles, func(i, j int) bool { return position[articles[i].ID] < position[articles[j].ID] })
+				if err := r.populateAuthors(ctx, articles); err != nil {
+					return nil, 0, err
+				}
 				return articles, total, nil
 			}
 		}
@@ -77,6 +82,9 @@ func (r *repository) ListArticles(ctx context.Context, filter ArticleFilter, lim
 	if err := query.Order("published_at DESC, id DESC").Limit(limit).Offset(offset).Find(&articles).Error; err != nil {
 		return nil, 0, fmt.Errorf("list articles: %w", err)
 	}
+	if err := r.populateAuthors(ctx, articles); err != nil {
+		return nil, 0, err
+	}
 	return articles, total, nil
 }
 
@@ -100,7 +108,49 @@ func (r *repository) GetArticle(ctx context.Context, slug string) (*Article, err
 	if err != nil {
 		return nil, fmt.Errorf("get article: %w", err)
 	}
+	items := []Article{article}
+	if err := r.populateAuthors(ctx, items); err != nil {
+		return nil, err
+	}
+	article = items[0]
 	return &article, nil
+}
+
+func (r *repository) populateAuthors(ctx context.Context, articles []Article) error {
+	ids := make([]uint64, 0, len(articles))
+	for _, article := range articles {
+		if article.AuthorID != nil {
+			ids = append(ids, *article.AuthorID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	var authors []user.User
+	if err := r.db.WithContext(ctx).Select("id", "username", "display_name", "avatar_uploaded").Where("id IN ?", ids).Find(&authors).Error; err != nil {
+		return fmt.Errorf("load article authors: %w", err)
+	}
+	byID := make(map[uint64]user.User, len(authors))
+	for _, author := range authors {
+		byID[author.ID] = author
+	}
+	for i := range articles {
+		if articles[i].AuthorID == nil {
+			continue
+		}
+		author, ok := byID[*articles[i].AuthorID]
+		if !ok {
+			continue
+		}
+		articles[i].AuthorName = author.DisplayName
+		if articles[i].AuthorName == "" {
+			articles[i].AuthorName = author.Username
+		}
+		if author.AvatarUploaded {
+			articles[i].AuthorAvatarURL = fmt.Sprintf("/api/v1/avatars/%d", author.ID)
+		}
+	}
+	return nil
 }
 
 func (r *repository) ListLinks(ctx context.Context) ([]FriendLink, error) {

@@ -108,6 +108,18 @@ func (h *Handler) RequireAdmin() gin.HandlerFunc {
 	}
 }
 
+func (h *Handler) RequireAuthor() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		u := CurrentUser(c)
+		if u == nil || (u.Role != user.RoleAdmin && u.Role != user.RoleAuthor) {
+			c.JSON(http.StatusForbidden, response.Response{Code: 40302, Message: "author access required"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
 func (h *Handler) Me(c *gin.Context) {
 	value, _ := c.Get(currentUserKey)
 	response.Success(c, user.ToResponse(value.(*user.User)))
