@@ -322,9 +322,15 @@ function Home() {
         </a>
         <div className="hero-wave" aria-hidden="true" />
       </section>
+      <nav className="home-index container" aria-label="快速浏览">
+        <span className="home-index-label">从这里开始</span>
+        <a href="#home-articles"><PenLine size={19} /><strong>读几篇文章</strong><small>{articles.data?.total ?? '—'} 篇</small><ArrowUpRight size={16} /></a>
+        <a href="#home-projects"><Code2 size={20} /><strong>看看项目</strong><small>{projects.data?.total ?? '—'} 个</small><ArrowUpRight size={16} /></a>
+        <a href="#home-shop"><Package size={19} /><strong>逛逛小店</strong><small>{products.data?.total ?? '—'} 件</small><ArrowUpRight size={16} /></a>
+      </nav>
       <div className="home-content container" id="latest">
         <div className="home-main">
-          <section className="section home-articles">
+          <section className="section home-articles" id="home-articles">
             <SectionTitle
               eyebrow="最近更新"
               title="文章"
@@ -347,7 +353,7 @@ function Home() {
               </div>
             </Status>
           </section>
-          <section className="section home-projects">
+          <section className="section home-projects" id="home-projects">
             <SectionTitle
               eyebrow="动手做的"
               title="项目"
@@ -370,7 +376,7 @@ function Home() {
               </div>
             </Status>
           </section>
-          <section className="section home-shop">
+          <section className="section home-shop" id="home-shop">
             <SectionTitle
               eyebrow="小小商店"
               title="数字作品"
@@ -677,7 +683,7 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
         style={project.cover_url ? { backgroundImage: `url(${project.cover_url})` } : undefined}
       >
         {!project.cover_url && <Code2 size={46} strokeWidth={1} />}
-        <span className="project-index">PROJECT / {String(index + 1).padStart(2, '0')}</span>
+        <span className="project-index">项目 {String(index + 1).padStart(2, '0')}</span>
         <span className="project-cover-arrow">
           <ArrowUpRight size={19} />
         </span>

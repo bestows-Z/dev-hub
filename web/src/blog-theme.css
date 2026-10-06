@@ -600,7 +600,7 @@ body {
 }
 .card-actions button { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: transparent; font-size: 12px; font-weight: 700; }
 .card-actions button:hover { text-decoration: underline; }
-.project-live-badge { position: absolute; z-index: 2; top: 13px; right: 13px; padding: 6px 9px; border-radius: 999px; background: #1c775ad9; color: #fff !important; font-size: 10px; font-weight: 700; box-shadow: 0 3px 12px #0a463a39; }
+.project-cover .project-live-badge { position: absolute; z-index: 2; top: 13px; right: 13px; bottom: auto; left: auto; padding: 6px 9px; border-radius: 999px; background: #1c775ad9; color: #fff !important; font-size: 10px; font-weight: 700; letter-spacing: 0; box-shadow: 0 3px 12px #0a463a39; }
 .project-preview-dialog { width: min(1260px, calc(100vw - 36px)); height: min(850px, calc(100vh - 44px)); max-width: none; max-height: none; padding: 0; overflow: hidden; border: 1px solid #dbe5dc; border-radius: 12px; background: #fff; box-shadow: 0 28px 80px #091d19a3; }
 .project-preview-dialog::backdrop { background: #0b1d1cd6; backdrop-filter: blur(9px); }
 .project-preview-topbar { display: flex; align-items: center; justify-content: space-between; height: 54px; padding: 0 18px; border-bottom: 1px solid #e3ebe5; background: #f7faf6; }
@@ -1152,6 +1152,27 @@ body {
     animation: none;
   }
 }
+
+.home-index { display: grid; grid-template-columns: 130px repeat(3, minmax(0, 1fr)); gap: 0; align-items: stretch; margin-top: 28px; padding: 0; border-top: 1px solid #e1e9e4; border-bottom: 1px solid #e1e9e4; }
+.home-index-label { display: flex; align-items: center; color: #608474; font-size: 12px; font-weight: 750; letter-spacing: .08em; }
+.home-index a { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 18px 14px; border-left: 1px solid #e1e9e4; color: #3c6751; transition: background-color .2s ease, transform .2s ease; }
+.home-index a:hover { background: #ecf6ed; transform: translateY(-3px); }
+.home-index a strong { color: #355342; font-size: 13px; white-space: nowrap; }
+.home-index a small { margin-left: auto; color: #91a298; font-size: 11px; white-space: nowrap; }
+.home-index a > svg:last-child { color: #7ba68a; flex: none; }
+.home-content { padding-top: 35px; }
+.home-main .section { scroll-margin-top: 35px; }
+.project-grid:has(> .project-card:only-child), .product-grid:has(> .product-card:only-child) { grid-template-columns: minmax(0, 1fr); }
+.project-grid > .project-card:only-child, .product-grid > .product-card:only-child { display: grid; grid-template-columns: minmax(0, 44%) minmax(0, 56%); min-height: 285px; }
+.project-grid > .project-card:only-child .project-cover, .product-grid > .product-card:only-child .product-cover { height: 100%; min-height: 285px; }
+.project-grid > .project-card:only-child .project-body, .product-grid > .product-card:only-child .product-info { display: flex; flex-direction: column; justify-content: center; padding: clamp(20px, 3vw, 38px); }
+.project-grid > .project-card:only-child .card-actions, .product-grid > .product-card:only-child .product-info > div:last-child { margin-top: auto; }
+:root[data-theme='night'] .home-index { border-color: #3b5042; }
+:root[data-theme='night'] .home-index a { border-color: #3b5042; color: #bdddc7; }
+:root[data-theme='night'] .home-index a strong { color: #e4f1e4; }
+:root[data-theme='night'] .home-index a:hover { background: #263a2d; }
+@media (max-width: 900px) { .home-index { grid-template-columns: repeat(3, minmax(0, 1fr)); } .home-index-label { grid-column: 1 / -1; padding: 11px 4px 0; } .home-index a:first-of-type { border-left: 0; } }
+@media (max-width: 600px) { .home-index a { gap: 6px; padding: 14px 7px; } .home-index a > svg:first-child { width: 16px; } .home-index a > svg:last-child, .home-index a small { display: none; } .home-index a strong { font-size: 11px; } .project-grid > .project-card:only-child, .product-grid > .product-card:only-child { display: block; min-height: 0; } .project-grid > .project-card:only-child .project-cover, .product-grid > .product-card:only-child .product-cover { height: 165px; min-height: 0; } }
 
 /* Motion and editorial details for the content catalog. */
 .hero-cover {
