@@ -98,6 +98,7 @@ func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, co
 	adminGroup.PUT("/projects/:id", adminHandler.UpdateProject)
 	adminGroup.DELETE("/projects/:id", adminHandler.DeleteProject)
 	adminGroup.POST("/projects/:id/bundle", adminHandler.UploadProjectBundle)
+	adminGroup.POST("/projects/:id/runtime-bundle", adminHandler.UploadRuntimeBundle)
 	adminGroup.GET("/orders", adminHandler.ListOrders)
 	adminGroup.PATCH("/orders/:id/status", adminHandler.UpdateOrderStatus)
 	return r

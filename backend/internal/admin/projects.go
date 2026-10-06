@@ -136,7 +136,71 @@ func (h *Handler) DeleteProject(c *gin.Context) {
 			h.logger.Warn("remove project bundle after delete", zap.Error(err))
 		}
 	}
+	if item.RuntimeBundleKey != "" {
+		if err := h.store.Remove(c.Request.Context(), item.RuntimeBundleKey); err != nil {
+			h.logger.Warn("remove runtime bundle after delete", zap.Error(err))
+		}
+	}
 	response.Success(c, gin.H{"deleted": true})
+}
+
+func (h *Handler) UploadRuntimeBundle(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	var item project.Project
+	if err := h.db.WithContext(c.Request.Context()).First(&item, id).Error; err != nil {
+		h.failure(c, "find project for runtime upload", err)
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, project.MaxRuntimeBundleBytes+(1<<20))
+	file, err := c.FormFile("file")
+	if err != nil || file.Size == 0 || file.Size > project.MaxRuntimeBundleBytes || !strings.HasSuffix(strings.ToLower(file.Filename), ".zip") {
+		response.Fail(c, response.CodeInvalidParams, "upload a runtime ZIP of at most 50 MiB")
+		return
+	}
+	handle, err := file.Open()
+	if err != nil {
+		h.failure(c, "open runtime bundle", err)
+		return
+	}
+	defer handle.Close()
+	blob, err := io.ReadAll(io.LimitReader(handle, project.MaxRuntimeBundleBytes+1))
+	if err != nil || len(blob) > project.MaxRuntimeBundleBytes {
+		response.Fail(c, response.CodeInvalidParams, "runtime ZIP exceeds 50 MiB")
+		return
+	}
+	if err := project.ValidateRuntimeBundle(blob); err != nil {
+		response.Fail(c, response.CodeInvalidParams, err.Error())
+		return
+	}
+	if err := h.store.EnsureBucket(c.Request.Context()); err != nil {
+		h.failure(c, "prepare runtime bucket", err)
+		return
+	}
+	var random [8]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		h.failure(c, "generate runtime revision", err)
+		return
+	}
+	key := fmt.Sprintf("project-runtimes/%d/%s.zip", item.ID, hex.EncodeToString(random[:]))
+	if err := h.store.Put(c.Request.Context(), key, blob, "application/zip"); err != nil {
+		h.failure(c, "upload runtime bundle", err)
+		return
+	}
+	previous := item.RuntimeBundleKey
+	if err := h.db.WithContext(c.Request.Context()).Model(&item).Updates(map[string]any{"runtime_bundle_key": key, "runtime_bundle_uploaded": true}).Error; err != nil {
+		_ = h.store.Remove(c.Request.Context(), key)
+		h.failure(c, "save runtime bundle", err)
+		return
+	}
+	if previous != "" {
+		if err := h.store.Remove(c.Request.Context(), previous); err != nil {
+			h.logger.Warn("remove previous runtime bundle", zap.Error(err))
+		}
+	}
+	response.Success(c, gin.H{"uploaded": true, "runtime_status": item.RuntimeStatus})
 }
 
 func (h *Handler) UploadProjectBundle(c *gin.Context) {

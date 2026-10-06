@@ -5,9 +5,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,6 +18,7 @@ import (
 	"github.com/bestows-Z/dev-hub/backend/internal/config"
 	pg "github.com/bestows-Z/dev-hub/backend/internal/platform/postgres"
 	"github.com/bestows-Z/dev-hub/backend/internal/project"
+	"github.com/bestows-Z/dev-hub/backend/internal/storage"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -41,8 +44,8 @@ func main() {
 }
 
 func run(args []string, command commandRunner) error {
-	if len(args) == 0 || (args[0] != "deploy" && args[0] != "stop") {
-		return errors.New("usage: go run ./cmd/preview deploy|stop --slug NAME [--frontend-image IMAGE --backend-image IMAGE --frontend-port 8080 --backend-port 8080]")
+	if len(args) == 0 || (args[0] != "deploy" && args[0] != "deploy-zip" && args[0] != "stop") {
+		return errors.New("usage: go run ./cmd/preview deploy|deploy-zip|stop --slug NAME [--frontend-image IMAGE --backend-image IMAGE --frontend-port 8080 --backend-port 8080]")
 	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	slug := flags.String("slug", "", "project slug")
@@ -58,6 +61,9 @@ func run(args []string, command commandRunner) error {
 	}
 	if args[0] == "deploy" && (!imagePattern.MatchString(*frontendImage) || !imagePattern.MatchString(*backendImage) || !validPort(*frontendPort) || !validPort(*backendPort)) {
 		return errors.New("deploy needs two local image names and valid container ports (1024–65535)")
+	}
+	if args[0] == "deploy-zip" && (!validPort(*frontendPort) || !validPort(*backendPort)) {
+		return errors.New("deploy-zip needs valid container ports (1024–65535)")
 	}
 	cfg, err := config.Load()
 	if err != nil {
@@ -75,15 +81,24 @@ func run(args []string, command commandRunner) error {
 		}
 		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
 	if args[0] == "stop" {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
 		if err := stop(ctx, connection.DB, item, command); err != nil {
 			return err
 		}
 		fmt.Printf("stopped %s\n", item.Slug)
 		return nil
 	}
+	if args[0] == "deploy-zip" {
+		if err := buildUploadedBundle(cfg, item, command); err != nil {
+			return err
+		}
+		*frontendImage = fmt.Sprintf("devhub-preview-%d-frontend:latest", item.ID)
+		*backendImage = fmt.Sprintf("devhub-preview-%d-backend:latest", item.ID)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
 	for _, image := range []string{*frontendImage, *backendImage, "node:20-alpine"} {
 		if _, err := command(ctx, "image", "inspect", image); err != nil {
 			return fmt.Errorf("image %q is not built locally: %w", image, err)
@@ -97,6 +112,114 @@ func run(args []string, command commandRunner) error {
 	}
 	fmt.Printf("deployed %s; publish the project to expose /api/v1/project-runtimes/%s/\n", item.Slug, item.Slug)
 	return nil
+}
+
+func buildUploadedBundle(cfg *config.Config, item project.Project, command commandRunner) error {
+	if item.RuntimeBundleKey == "" {
+		return errors.New("upload a runtime ZIP in project management first")
+	}
+	store, err := storage.New(cfg.Storage)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
+	defer cancel()
+	body, size, _, err := store.Get(ctx, item.RuntimeBundleKey)
+	if err != nil {
+		return fmt.Errorf("download runtime ZIP: %w", err)
+	}
+	defer body.Close()
+	if size < 1 || size > project.MaxRuntimeBundleBytes {
+		return errors.New("runtime ZIP is too large")
+	}
+	blob, err := io.ReadAll(io.LimitReader(body, project.MaxRuntimeBundleBytes+1))
+	if err != nil {
+		return err
+	}
+	if len(blob) > project.MaxRuntimeBundleBytes {
+		return errors.New("runtime ZIP is too large")
+	}
+	directory, err := os.MkdirTemp("", "devhub-runtime-*")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(directory)
+	if err := project.ExtractRuntimeBundle(blob, directory); err != nil {
+		return err
+	}
+	for _, service := range []string{"frontend", "backend"} {
+		contextDir := filepath.Join(directory, service)
+		bases, err := dockerfileBases(filepath.Join(contextDir, "Dockerfile"))
+		if err != nil {
+			return fmt.Errorf("%s Dockerfile: %w", service, err)
+		}
+		for _, base := range bases {
+			if _, err := command(ctx, "image", "inspect", base); err != nil {
+				return fmt.Errorf("%s base image %q is unavailable locally: %w", service, base, err)
+			}
+		}
+		image := fmt.Sprintf("devhub-preview-%d-%s:latest", item.ID, service)
+		if _, err := command(ctx, "build", "--pull=false", "--network=none", "--tag", image, contextDir); err != nil {
+			return fmt.Errorf("build %s: %w", service, err)
+		}
+	}
+	return nil
+}
+
+func dockerfileBases(filename string) ([]string, error) {
+	blob, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	var bases []string
+	stages := make(map[string]bool)
+	for _, line := range strings.Split(string(blob), "\n") {
+		parts := strings.Fields(strings.TrimSpace(line))
+		if len(parts) == 0 {
+			continue
+		}
+		if strings.HasPrefix(parts[0], "#") {
+			comment := strings.ToLower(strings.Join(parts, " "))
+			if strings.HasPrefix(comment, "# syntax=") || strings.HasPrefix(comment, "#syntax=") {
+				return nil, errors.New("external Dockerfile syntax is not allowed")
+			}
+			continue
+		}
+		switch strings.ToUpper(parts[0]) {
+		case "ADD", "ONBUILD":
+			return nil, fmt.Errorf("%s is not allowed in runtime Dockerfiles", parts[0])
+		case "RUN":
+			if strings.Contains(strings.ToLower(line), "--mount=") {
+				return nil, errors.New("RUN --mount is not allowed")
+			}
+		case "COPY":
+			for _, part := range parts[1:] {
+				if strings.HasPrefix(strings.ToLower(part), "--from=") && !stages[strings.ToLower(part[len("--from="):])] {
+					return nil, errors.New("COPY --from must name an earlier local build stage")
+				}
+			}
+		}
+		if !strings.EqualFold(parts[0], "FROM") {
+			continue
+		}
+		if len(parts) < 2 || strings.HasPrefix(parts[1], "--") || strings.ContainsAny(parts[1], "$@") {
+			return nil, errors.New("FROM must name a fixed local image")
+		}
+		base := parts[1]
+		if !stages[strings.ToLower(base)] {
+			if !imagePattern.MatchString(base) || strings.EqualFold(base, "scratch") {
+				return nil, fmt.Errorf("invalid base image %q", base)
+			}
+			bases = append(bases, base)
+		}
+		if len(parts) >= 4 && strings.EqualFold(parts[2], "AS") {
+			stages[strings.ToLower(parts[3])] = true
+		}
+	}
+	if len(bases) == 0 {
+		return nil, errors.New("no local FROM image found")
+	}
+	return bases, nil
 }
 
 func validPort(port int) bool { return port >= 1024 && port <= 65535 }

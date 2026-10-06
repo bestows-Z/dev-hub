@@ -775,6 +775,21 @@
   color: #496b55;
   font-size: 12px;
 }
+.admin-project-help {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 0 0 15px;
+  padding: 11px 14px;
+  border-radius: 8px;
+  background: #f4f8f2;
+  color: #557263;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.admin-project-help a { color: #257e70; font-weight: 700; }
 .admin-shell .admin-list,
 .admin-shell .admin-editor {
   border-color: #e0e8df;

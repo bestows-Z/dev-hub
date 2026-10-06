@@ -401,6 +401,27 @@ export default function Admin() {
     }
   }
 
+  async function uploadRuntimeBundle(item: Item, file?: File) {
+    if (!file) return
+    if (file.size > 50 * 1024 * 1024) {
+      setMessage('完整项目 ZIP 不能超过 50 MiB')
+      return
+    }
+    setBusy(true)
+    setMessage('')
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      await request(`/admin/projects/${item.id}/runtime-bundle`, { method: 'POST', body })
+      setMessage(`项目代码已上传。请在服务器执行：go run ./cmd/preview deploy-zip --slug ${String(item.slug)}`)
+      await refreshLatest.current()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '上传失败')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   function selectKind(next: Kind) {
     if (kind === next) return
     currentListKey.current = listKey(next, 1, 'pending', token)
@@ -741,6 +762,12 @@ export default function Admin() {
                 </select>
               )}
             </div>
+            {kind === 'projects' && (
+              <div className="admin-project-help">
+                <span>项目预览支持外部地址、静态页面 ZIP 和完整前后端 ZIP。完整项目上传后，由站长在服务器构建运行。</span>
+                <a href="/downloads/project-runtime-template.zip" download>下载完整项目模板</a>
+              </div>
+            )}
             {form && isEditableKind(kind) && (
               <form className="admin-editor" onSubmit={save}>
                 <div className="admin-editor-head">
@@ -939,6 +966,18 @@ export default function Admin() {
                                   disabled={busy}
                                   onChange={(event) => {
                                     void uploadBundle(item, event.target.files?.[0])
+                                    event.target.value = ''
+                                  }}
+                                />
+                              </label>
+                              <label className="admin-upload" title="上传包含 frontend、backend 与 docker-compose.yml 的完整项目 ZIP">
+                                <UploadCloud size={17} /> {item.runtime_bundle_uploaded ? '替换完整项目' : '上传完整项目'}
+                                <input
+                                  type="file"
+                                  accept=".zip,application/zip"
+                                  disabled={busy}
+                                  onChange={(event) => {
+                                    void uploadRuntimeBundle(item, event.target.files?.[0])
                                     event.target.value = ''
                                   }}
                                 />

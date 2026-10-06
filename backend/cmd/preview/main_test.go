@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -38,6 +39,31 @@ func TestParseMappedPortRequiresLoopback(t *testing.T) {
 	}
 	if _, err := parseMappedPort("0.0.0.0:32769"); err == nil {
 		t.Fatal("accepted a publicly bound port")
+	}
+}
+
+func TestDockerfileBasesRequireLocalImagesAndStages(t *testing.T) {
+	for _, test := range []struct {
+		name, file string
+		ok         bool
+	}{
+		{"simple", "FROM node:20-alpine\nCOPY . .\n", true},
+		{"multi-stage", "FROM node:20-alpine AS build\nRUN node --version\nFROM node:20-alpine\nCOPY --from=build /app /app\n", true},
+		{"remote add", "FROM node:20-alpine\nADD https://example.com/file /app\n", false},
+		{"remote copy", "FROM node:20-alpine\nCOPY --from=registry.example/image /x /x\n", false},
+		{"remote syntax", "# syntax=docker/dockerfile:1\nFROM node:20-alpine\n", false},
+		{"mount", "FROM node:20-alpine\nRUN --mount=type=secret,id=key cat /run/secrets/key\n", false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			filename := filepath.Join(t.TempDir(), "Dockerfile")
+			if err := os.WriteFile(filename, []byte(test.file), 0600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := dockerfileBases(filename)
+			if (err == nil) != test.ok {
+				t.Fatalf("err=%v, want ok=%v", err, test.ok)
+			}
+		})
 	}
 }
 

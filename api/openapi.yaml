@@ -333,6 +333,40 @@ paths:
                       preview_url: { type: string, example: /api/v1/project-previews/my-project/index.html }
                       files: { type: integer, example: 12 }
 
+  /api/v1/admin/projects/{id}/runtime-bundle:
+    parameters:
+      - { $ref: "#/components/parameters/AdminID" }
+    post:
+      tags: [Admin]
+      summary: 上传完整前后端项目 ZIP
+      description: ZIP 根目录必须包含 docker-compose.yml、frontend/Dockerfile、backend/Dockerfile；Compose 仅接受 frontend 与 backend 两个服务，对应 ./frontend 和 ./backend。ZIP 不超过 50 MiB，解压总量不超过 250 MiB。上传只保存到 MinIO，不会在 API 进程构建或运行。站长在服务器执行 deploy-zip 命令后，已发布项目可在本站预览。模板可从 /downloads/project-runtime-template.zip 下载。
+      operationId: adminUploadRuntimeBundle
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary, description: 完整前后端项目 ZIP }
+      responses:
+        "200":
+          description: code 为 0 时上传成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string, example: success }
+                  data:
+                    type: object
+                    properties:
+                      uploaded: { type: boolean, example: true }
+                      runtime_status: { type: string, enum: [stopped, running] }
+
   /api/v1/project-previews/{slug}/{filepath}:
     get:
       tags: [Projects]
@@ -1230,7 +1264,7 @@ components:
 
     Project:
       type: object
-      required: [id, slug, title, description, cover_url, tags, preview_url, backend_url, runtime_status, source_url]
+      required: [id, slug, title, description, cover_url, tags, preview_url, backend_url, runtime_bundle_uploaded, runtime_status, source_url]
       properties:
         id: { type: integer, format: int64 }
         slug: { type: string }
@@ -1242,6 +1276,7 @@ components:
           items: { type: string }
         preview_url: { type: string, description: 隔离来源的预览入口；为空则暂不可预览 }
         backend_url: { type: string, description: 运行中的项目后端入口，否则为空 }
+        runtime_bundle_uploaded: { type: boolean, description: 是否已上传完整前后端 ZIP }
         runtime_status: { type: string, enum: [stopped, running] }
         source_url: { type: string }
 
