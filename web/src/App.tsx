@@ -9,7 +9,6 @@ import {
   type ReactNode,
 } from 'react'
 import { Link, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
-import Admin from './Admin'
 import { Account, Login, Register } from './Auth'
 import { Comments, LinkApplicationForm } from './Engagement'
 import { authChanged, readUser } from './session'
@@ -47,6 +46,7 @@ import {
 } from './api'
 
 const ArticleReading = lazy(() => import('./ArticleReading'))
+const Admin = lazy(() => import('./Admin'))
 type Remote<T> = { data: T | null; loading: boolean; error: string }
 const contactEmail = import.meta.env.VITE_CONTACT_EMAIL as string | undefined
 const contactHref = contactEmail ? `mailto:${contactEmail}` : 'https://github.com/bestows-Z'
@@ -1313,7 +1313,14 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/account" element={<Account />} />
-        <Route path="/admin" element={<Admin />} />
+        <Route
+          path="/admin"
+          element={
+            <Suspense fallback={<div className="loading-state">正在打开管理台…</div>}>
+              <Admin />
+            </Suspense>
+          }
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
