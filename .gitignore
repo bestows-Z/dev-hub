@@ -176,3 +176,9 @@ data/
 
 # Upload
 uploads/
+
+# Local AI working notes (never publish in the open-source repository)
+task_plan.md
+findings.md
+progress.md
+docs/superpowers/
