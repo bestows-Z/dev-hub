@@ -594,9 +594,26 @@ body {
   color: #8b9698;
 }
 .card-actions a,
+.card-actions button,
 .product-info span {
   color: #398f89;
 }
+.card-actions button { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: transparent; font-size: 12px; font-weight: 700; }
+.card-actions button:hover { text-decoration: underline; }
+.project-live-badge { position: absolute; z-index: 2; top: 13px; right: 13px; padding: 6px 9px; border-radius: 999px; background: #1c775ad9; color: #fff !important; font-size: 10px; font-weight: 700; box-shadow: 0 3px 12px #0a463a39; }
+.project-preview-dialog { width: min(1260px, calc(100vw - 36px)); height: min(850px, calc(100vh - 44px)); max-width: none; max-height: none; padding: 0; overflow: hidden; border: 1px solid #dbe5dc; border-radius: 12px; background: #fff; box-shadow: 0 28px 80px #091d19a3; }
+.project-preview-dialog::backdrop { background: #0b1d1cd6; backdrop-filter: blur(9px); }
+.project-preview-topbar { display: flex; align-items: center; justify-content: space-between; height: 54px; padding: 0 18px; border-bottom: 1px solid #e3ebe5; background: #f7faf6; }
+.project-preview-topbar > div { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.project-preview-topbar strong { overflow: hidden; color: #2f4c3e; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.project-preview-topbar small { color: #8aa093; white-space: nowrap; }
+.project-preview-dot { width: 9px; height: 9px; flex: none; border-radius: 50%; background: #50b986; box-shadow: 0 0 0 4px #50b98628; }
+.project-preview-topbar button { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border: 0; border-radius: 7px; background: transparent; color: #547060; }
+.project-preview-topbar button:hover { background: #e8f1e9; }
+.project-preview-dialog iframe { display: block; width: 100%; height: calc(100% - 54px); border: 0; background: #fff; }
+.project-preview-message { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 11px; height: calc(100% - 54px); padding: 30px; background: #f9fbf8; color: #7a9081; font-size: 13px; text-align: center; }
+.project-preview-message strong { color: #385448; font-size: 19px; }
+.project-preview-message button { margin-top: 8px; padding: 10px 17px; border: 0; border-radius: 7px; background: #3f9171; color: #fff; font-size: 12px; font-weight: 700; }
 .product-info strong {
   color: #3e6662;
 }

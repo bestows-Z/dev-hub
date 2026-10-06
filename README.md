@@ -40,7 +40,7 @@
 
 静态项目预览：先在管理页创建项目，再上传包含 `index.html` 的构建产物 ZIP（可直接压缩 `dist/` 目录），最后发布项目。前端构建时请使用相对资源路径，例如 Vite 的 `base: './'`，否则从子路径打开时资源会指向站点根目录。压缩包上限 20 MiB；只接收网页资源文件，拒绝隐藏文件、软链接和越界路径。MinIO 存储使用 `.env` 中的 `MINIO_*` 配置；正式部署时请改用独立服务账号。
 
-前后端动态预览：后台可上传完整项目 ZIP，目录结构见可下载的 [项目模板](web/public/downloads/project-runtime-template.zip)；站长在服务器执行 `go run ./cmd/preview deploy-zip --slug 项目标识`，运行器从 MinIO 读取代码、离线构建 Docker 镜像并启动前后端。也可使用预先构建的镜像执行 `deploy`。应用容器各自运行在内部网络，通过只绑定 `127.0.0.1` 的网关连接主 API。操作步骤、镜像要求与限制见 [`docs/project-runtime.md`](docs/project-runtime.md)。普通用户上传 ZIP 不会触发容器执行。
+前后端动态预览：后台可上传完整项目 ZIP，目录结构见可下载的 [项目模板](web/public/downloads/project-runtime-template.zip)；站长在服务器执行 `go run ./cmd/preview deploy-zip --slug 项目标识`，运行器从 MinIO 读取代码、离线构建 Docker 镜像并启动前后端。也可使用预先构建的镜像执行 `deploy`。已发布的站内项目会在首页和项目页的隔离窗口中预览，外部项目链接仍可单独打开。应用容器各自运行在内部网络，通过只绑定 `127.0.0.1` 的网关连接主 API。操作步骤、镜像要求与限制见 [`docs/project-runtime.md`](docs/project-runtime.md)。普通用户上传 ZIP 不会触发容器执行。
 
 ## 接口文档
 

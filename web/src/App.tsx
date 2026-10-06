@@ -653,6 +653,23 @@ function PageIntro({
 }
 
 function ProjectCard({ project, index }: { project: Project; index: number }) {
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewState, setPreviewState] = useState<'checking' | 'ready' | 'unavailable'>('checking')
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  const previewRequest = useRef<AbortController | null>(null)
+  const localPreview = project.preview_url?.startsWith('/api/v1/project-runtimes/') || project.preview_url?.startsWith('/api/v1/project-previews/')
+  function showPreview() {
+    setPreviewOpen(true)
+    setPreviewState('checking')
+    if (!dialogRef.current?.open) dialogRef.current?.showModal()
+    const controller = new AbortController()
+    previewRequest.current = controller
+    fetch(project.preview_url, { signal: controller.signal }).then((response) => {
+      void response.body?.cancel().catch(() => {})
+      if (!controller.signal.aborted) setPreviewState(response.ok ? 'ready' : 'unavailable')
+    }).catch(() => { if (!controller.signal.aborted) setPreviewState('unavailable') })
+  }
+  function closePreview() { previewRequest.current?.abort(); dialogRef.current?.close() }
   return (
     <article className="project-card reveal" style={{ animationDelay: `${index * 65}ms` }}>
       <div
@@ -664,6 +681,7 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
         <span className="project-cover-arrow">
           <ArrowUpRight size={19} />
         </span>
+        {project.runtime_status === 'running' && <span className="project-live-badge">已部署</span>}
       </div>
       <div className="project-body">
         <div className="tag-row">
@@ -674,9 +692,14 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
         <h3>{project.title}</h3>
         <p>{project.description}</p>
         <div className="card-actions">
-          {project.preview_url && (
+          {project.preview_url && localPreview && (
+            <button type="button" onClick={showPreview}>
+              站内预览 <ExternalLink size={16} />
+            </button>
+          )}
+          {project.preview_url && !localPreview && (
             <a href={project.preview_url} target="_blank" rel="noopener noreferrer">
-              在线预览 <ExternalLink size={16} />
+              外部预览 <ExternalLink size={16} />
             </a>
           )}
           {project.backend_url && (
@@ -696,6 +719,15 @@ function ProjectCard({ project, index }: { project: Project; index: number }) {
           )}
         </div>
       </div>
+      {localPreview && <dialog ref={dialogRef} className="project-preview-dialog" onClose={() => { previewRequest.current?.abort(); setPreviewOpen(false) }} onClick={(event) => { if (event.target === event.currentTarget) closePreview() }} aria-label={`${project.title} 站内预览`}>
+        <div className="project-preview-topbar">
+          <div><span className="project-preview-dot" /><strong>{project.title}</strong><small>站内隔离预览</small></div>
+          <button type="button" onClick={closePreview} aria-label="关闭项目预览"><X size={20} /></button>
+        </div>
+        {previewOpen && previewState === 'checking' && <div className="project-preview-message">正在连接项目…</div>}
+        {previewOpen && previewState === 'unavailable' && <div className="project-preview-message"><strong>项目暂时无法访问</strong><span>运行容器可能已经停止，请稍后再试。</span><button type="button" onClick={showPreview}>重新连接</button></div>}
+        {previewOpen && previewState === 'ready' && <iframe title={`${project.title} 预览`} src={project.preview_url} sandbox="allow-scripts allow-forms allow-downloads" referrerPolicy="no-referrer" />}
+      </dialog>}
     </article>
   )
 }
