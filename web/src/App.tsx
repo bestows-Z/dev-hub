@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import {
   useEffect,
   lazy,
@@ -168,7 +169,7 @@ function Layout({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <main id="main">{children}</main>
+      <main id="main" tabIndex={-1} aria-label="正文">{children}</main>
       <footer className="site-footer">
         <div className="container footer-inner">
           <div>
@@ -884,8 +885,10 @@ function ProductDetail() {
       })
       setNotice(`订单 ${result.order_no} 已创建，当前状态为待付款。`)
       setCreatedOrder(true)
+      toast.success('订单已创建', { description: `订单号 ${result.order_no}，请在个人中心查看。` })
     } catch (error) {
       setNotice(error instanceof Error ? error.message : '下单失败')
+      toast.error(error instanceof Error ? error.message : '下单失败')
     } finally {
       setBusy(false)
     }

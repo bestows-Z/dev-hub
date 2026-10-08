@@ -1,3 +1,5 @@
+import { toast } from 'sonner'
+import { useConfirm } from './Feedback'
 import { useEffect, useState, type FormEvent } from 'react'
 import { ArrowLeft, BookOpen, Check, ChevronLeft, ChevronRight, Edit3, ExternalLink, LogOut, Plus, Trash2, UploadCloud } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
@@ -25,6 +27,7 @@ const emptyDraft: Draft = { slug: '', title: '', excerpt: '', body_md: '', cover
 const categories = { tech: '技术', travel: '游记', essay: '随笔', record: '记录' } as const
 
 export default function Studio() {
+  const confirm = useConfirm()
   const token = readToken()
   const user = readUser()
   const [verified, setVerified] = useState(false)
@@ -86,21 +89,21 @@ export default function Studio() {
       setDraft(null)
       setCover(null)
       setCoverPreview('')
-      setMessage('已保存')
+      toast.success('文章已保存')
       await reload()
     } catch (error) {
       if (uploadedID) void api(`/studio/media/${uploadedID}`, { method: 'DELETE', headers }).catch(() => {})
-      setMessage(error instanceof Error ? error.message : '保存失败')
+      setMessage(error instanceof Error ? error.message : '保存失败'); toast.error(error instanceof Error ? error.message : '保存失败')
     } finally { setBusy(false) }
   }
   async function remove(item: Draft) {
-    if (!window.confirm(`删除《${item.title}》？此操作无法撤销。`)) return
+    if (!await confirm({ title: '删除这篇文章？', description: `《${item.title}》将被永久删除，相关评论也会一并移除。`, confirmLabel: '删除文章', danger: true })) return
     setBusy(true)
     try {
       await api(`/studio/articles/${item.id}`, { method: 'DELETE', headers })
-      setMessage('已删除')
+      toast.success('文章已删除')
       await reload()
-    } catch (error) { setMessage(error instanceof Error ? error.message : '删除失败') }
+    } catch (error) { setMessage(error instanceof Error ? error.message : '删除失败'); toast.error(error instanceof Error ? error.message : '删除失败') }
     finally { setBusy(false) }
   }
   function edit(item?: Draft) {
@@ -117,7 +120,7 @@ export default function Studio() {
       <div className="studio-side-body"><span>写作空间</span><h1>慢慢写，<br />认真分享。</h1><p>草稿和已发布文章都在这里。你的作品由你自己管理。</p><BookOpen size={92} strokeWidth={1} /></div>
       <div className="studio-side-foot"><strong>{user?.display_name || user?.username || '作者'}</strong><span>本站作者</span></div>
     </aside>
-    <main className="studio-main">
+    <main className="studio-main" tabIndex={-1} aria-label="作者写作台">
       <div className="studio-top"><Link to="/account"><ArrowLeft size={16} /> 我的账户</Link><Link to="/articles">阅读文章 <ExternalLink size={15} /></Link></div>
       <header className="studio-heading"><div><span>CONTENT / ARTICLES</span><h1>我的文章</h1><p>记录想法、整理经验，也可以先存成草稿。</p></div><button type="button" onClick={() => edit()}><Plus size={17} /> 写新文章</button></header>
       {message && <p className="studio-message" role="status">{message}</p>}

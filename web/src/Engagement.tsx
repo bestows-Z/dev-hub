@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, MessageCircle, Send } from 'lucide-react'
@@ -57,9 +58,11 @@ export function Comments({ slug }: { slug: string }) {
       setBody('')
       setReplyTo(null)
       setNotice('评论已提交，审核通过后会显示在这里。')
+      toast.success('评论已提交，审核通过后会显示在这里。')
     } catch (failure) {
       if (failure instanceof ApiError && failure.status === 401) clearSession()
       setNotice(failure instanceof Error ? failure.message : '提交失败，请重试。')
+      toast.error(failure instanceof Error ? failure.message : '提交失败，请重试。')
     } finally {
       setBusy(false)
     }
@@ -186,6 +189,7 @@ export function LinkApplicationForm() {
         }),
       })
       setNotice('申请已收到，站长审核后会出现在友链列表。')
+      toast.success('申请已收到，站长审核后会出现在友链列表。')
       setName('')
       setURL('')
       setAvatarURL('')
@@ -193,6 +197,7 @@ export function LinkApplicationForm() {
     } catch (failure) {
       if (failure instanceof ApiError && failure.status === 401) clearSession()
       setNotice(failure instanceof Error ? failure.message : '申请暂时无法提交')
+      toast.error(failure instanceof Error ? failure.message : '申请暂时无法提交')
     } finally {
       setBusy(false)
     }

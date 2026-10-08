@@ -31,6 +31,8 @@ import remarkGfm from 'remark-gfm'
 import { ApiError, api, formatDate, formatPrice, type Page } from './api'
 import { clearSession, readUser, saveSession, type LoginResult } from './session'
 import './admin.css'
+import { toast } from 'sonner'
+import { useConfirm } from './Feedback'
 import { EmailCodeField } from './EmailCodeField'
 
 type Kind =
@@ -195,6 +197,7 @@ function toPayload(kind: EditableKind, form: Record<string, unknown>): Record<st
 }
 
 export default function Admin() {
+  const confirm = useConfirm()
   const [token, setToken] = useState(() => sessionStorage.getItem('devhub_admin_token') || '')
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
@@ -325,6 +328,11 @@ export default function Admin() {
     if (kind === 'overview') void loadStats()
   }, [kind, loadStats])
 
+  function reportError(failure: unknown, fallback: string) {
+    const text = failure instanceof Error ? failure.message : fallback
+    setMessage(text)
+    toast.error(text)
+  }
   async function login(event: FormEvent) {
     event.preventDefault()
     setBusy(true)
@@ -340,7 +348,7 @@ export default function Admin() {
       setPassword('')
       setEmailCode('')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '登录失败')
+      reportError(error, '登录失败')
     } finally {
       setBusy(false)
     }
@@ -395,26 +403,29 @@ export default function Admin() {
           body: JSON.stringify(payload),
         })
       }
-      setMessage(id ? '已保存修改' : '已创建')
+      toast.success(id ? '已保存修改' : '已创建')
       setForm(null)
       setCoverFile(null)
       setCoverPreview('')
       await refreshLatest.current()
     } catch (error) {
       if (uploadedCoverID) void request(`/admin/media/${uploadedCoverID}`, { method: 'DELETE' }).catch(() => {})
-      setMessage(error instanceof Error ? error.message : '保存失败')
+      reportError(error, '保存失败')
     } finally {
       setBusy(false)
     }
   }
   async function remove(item: Item) {
-    if (!window.confirm('确定删除这条内容吗？')) return
+    if (!await confirm({ title: '删除这条内容？', description: `《${item.title || item.name || item.slug || item.id}》将从站点移除，此操作无法撤销。`, confirmLabel: '删除内容', danger: true })) return
+    setBusy(true)
     try {
       await request(`/admin/${kind}/${item.id}`, { method: 'DELETE' })
-      setMessage('已删除')
+      toast.success('已删除')
       await refreshLatest.current()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '删除失败')
+      reportError(error, '删除失败')
+    } finally {
+      setBusy(false)
     }
   }
   async function changeOrder(item: Item, status: string) {
@@ -424,16 +435,19 @@ export default function Admin() {
         : status === 'paid'
           ? '标记为已付款'
           : '标记为已交付'
-    if (!window.confirm(`确定${action}吗？`)) return
+    if (!await confirm({ title: `${action}？`, description: `订单 ${item.order_no || item.id} 的状态将被更新。请确认实际收款或交付情况。`, confirmLabel: '确认更新', danger: status === 'cancelled' })) return
+    setBusy(true)
     try {
       await request(`/admin/orders/${item.id}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       })
-      setMessage('订单状态已更新')
+      toast.success('订单状态已更新')
       await refreshLatest.current()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '更新失败')
+      reportError(error, '更新失败')
+    } finally {
+      setBusy(false)
     }
   }
   async function review(item: Item, status: 'approved' | 'rejected') {
@@ -445,10 +459,10 @@ export default function Admin() {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       })
-      setMessage(status === 'approved' ? '已通过审核' : '已驳回')
+      toast.success(status === 'approved' ? '已通过审核' : '已驳回')
       await refreshLatest.current()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '审核失败')
+      reportError(error, '审核失败')
     } finally {
       setBusy(false)
     }
@@ -465,10 +479,10 @@ export default function Admin() {
       const body = new FormData()
       body.append('file', file)
       await request(`/admin/projects/${item.id}/bundle`, { method: 'POST', body })
-      setMessage(item.status === 'published' ? '预览已更新' : '预览已上传，发布项目后即可公开访问')
+      toast.success(item.status === 'published' ? '预览已更新' : '预览已上传，发布项目后即可公开访问')
       await refreshLatest.current()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '上传失败')
+      reportError(error, '上传失败')
     } finally {
       setBusy(false)
     }
@@ -486,10 +500,10 @@ export default function Admin() {
       const body = new FormData()
       body.append('file', file)
       await request(`/admin/projects/${item.id}/runtime-bundle`, { method: 'POST', body })
-      setMessage('完整项目已上传。现在可以在项目列表中点击「启动」。')
+      toast.success('完整项目已上传。现在可以在项目列表中点击「启动」。')
       await refreshLatest.current()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '上传失败')
+      reportError(error, '上传失败')
     } finally {
       setBusy(false)
     }
@@ -503,10 +517,10 @@ export default function Admin() {
         method: 'POST',
         body: JSON.stringify({ action }),
       })
-      setMessage(action === 'start' ? '项目已加入构建队列，状态会自动更新。' : '停止任务已提交。')
+      toast.success(action === 'start' ? '项目已加入构建队列，状态会自动更新。' : '停止任务已提交。')
       await refreshLatest.current()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '操作失败')
+      reportError(error, '操作失败')
     } finally {
       setBusy(false)
     }
@@ -682,7 +696,7 @@ export default function Admin() {
           </button>
         </div>
       </aside>
-      <main className="admin-workspace">
+      <main className="admin-workspace" tabIndex={-1} aria-label="站点管理">
         <div className="admin-breadcrumb">
           DevHub <ChevronRight size={14} /> 管理台 <ChevronRight size={14} /> {activeTab?.label}
         </div>
@@ -1066,11 +1080,12 @@ export default function Admin() {
                         <>
                           {item.status === 'pending_payment' && (
                             <>
-                              <button type="button" onClick={() => void changeOrder(item, 'paid')}>
+                              <button type="button" disabled={busy} onClick={() => void changeOrder(item, 'paid')}>
                                 已付款
                               </button>
                               <button
                                 type="button"
+                                disabled={busy}
                                 onClick={() => void changeOrder(item, 'cancelled')}
                               >
                                 取消
@@ -1080,6 +1095,7 @@ export default function Admin() {
                           {item.status === 'paid' && (
                             <button
                               type="button"
+                              disabled={busy}
                               onClick={() => void changeOrder(item, 'delivered')}
                             >
                               已交付
@@ -1149,6 +1165,7 @@ export default function Admin() {
                           </button>
                           <button
                             type="button"
+                            disabled={busy}
                             onClick={() => void remove(item)}
                             aria-label={`删除 ${String(item.title || item.name)}`}
                           >

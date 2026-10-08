@@ -1,3 +1,5 @@
+import { toast } from 'sonner'
+import { useConfirm } from './Feedback'
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Eye, EyeOff, LogOut, Save, ShoppingBag, UploadCloud, UserRound } from 'lucide-react'
@@ -114,6 +116,7 @@ export function Login() {
       })
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : '登录失败，请稍后再试。')
+      toast.error(failure instanceof Error ? failure.message : '登录失败，请稍后再试。')
     } finally {
       setBusy(false)
     }
@@ -200,6 +203,7 @@ export function Register() {
       }
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : '注册失败，请稍后再试。')
+      toast.error(failure instanceof Error ? failure.message : '注册失败，请稍后再试。')
     } finally {
       setBusy(false)
     }
@@ -266,6 +270,7 @@ export function Register() {
 }
 
 export function Account() {
+  const confirm = useConfirm()
   const navigate = useNavigate()
   const token = readToken()
   const [user, setUser] = useState<AuthUser | null>(readUser)
@@ -371,6 +376,7 @@ export function Account() {
       setUser(updated)
       refreshSessionUser(updated)
       setProfileMessage('资料已保存')
+      toast.success('资料已保存')
       setNewEmailCode('')
     } catch (failure) {
       if (!mounted.current || readToken() !== requestToken) return
@@ -382,6 +388,7 @@ export function Account() {
         return
       }
       setProfileMessage(failure instanceof Error ? failure.message : '保存失败')
+      toast.error(failure instanceof Error ? failure.message : '保存失败')
     } finally {
       if (mounted.current && readToken() === requestToken) setSaving(false)
     }
@@ -407,6 +414,7 @@ export function Account() {
       setUser(updated)
       refreshSessionUser(updated)
       setProfileMessage('头像已更新')
+      toast.success('头像已更新')
     } catch (failure) {
       if (!mounted.current || readToken() !== requestToken) return
       if (failure instanceof ApiError && failure.status === 401) {
@@ -417,6 +425,7 @@ export function Account() {
         return
       }
       setProfileMessage(failure instanceof Error ? failure.message : '头像上传失败')
+      toast.error(failure instanceof Error ? failure.message : '头像上传失败')
     } finally {
       if (mounted.current && readToken() === requestToken) setSaving(false)
     }
@@ -435,6 +444,7 @@ export function Account() {
       setUser(updated)
       refreshSessionUser(updated)
       setProfileMessage('头像已移除')
+      toast.success('头像已移除')
     } catch (failure) {
       if (!mounted.current || readToken() !== requestToken) return
       if (failure instanceof ApiError && failure.status === 401) {
@@ -445,20 +455,24 @@ export function Account() {
         return
       }
       setProfileMessage(failure instanceof Error ? failure.message : '头像移除失败')
+      toast.error(failure instanceof Error ? failure.message : '头像移除失败')
     } finally {
       if (mounted.current && readToken() === requestToken) setSaving(false)
     }
   }
   async function cancelOrder(order: MyOrder) {
     if (!token) return
+    if (!await confirm({ title: '取消这笔订单？', description: `订单 ${order.order_no} 将被取消，预留库存会退回。`, confirmLabel: '取消订单', danger: true })) return
     setOrdersBusy(order.id)
     setOrdersError('')
     try {
       await api(`/orders/${order.id}/cancel`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}` } })
       const latest = await api<Page<MyOrder>>(`/orders?page=${ordersPage}`, { headers: { Authorization: `Bearer ${token}` } })
       setOrders(latest)
+      toast.success('订单已取消')
     } catch (failure) {
       setOrdersError(failure instanceof Error ? failure.message : '取消订单失败')
+      toast.error(failure instanceof Error ? failure.message : '取消订单失败')
     } finally {
       setOrdersBusy(null)
     }
@@ -474,6 +488,7 @@ export function Account() {
       setAuthorApplications(items)
       setAuthorReason('')
       setAuthorMessage('申请已提交，审核结果会显示在这里。')
+      toast.success('作者申请已提交')
     } catch (failure) { setAuthorMessage(failure instanceof Error ? failure.message : '申请提交失败') }
     finally { setAuthorBusy(false) }
   }
