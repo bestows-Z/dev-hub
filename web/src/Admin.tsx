@@ -31,6 +31,7 @@ import remarkGfm from 'remark-gfm'
 import { ApiError, api, formatDate, formatPrice, type Page } from './api'
 import { clearSession, readUser, saveSession, type LoginResult } from './session'
 import './admin.css'
+import { EmailCodeField } from './EmailCodeField'
 
 type Kind =
   | 'overview'
@@ -197,6 +198,8 @@ export default function Admin() {
   const [token, setToken] = useState(() => sessionStorage.getItem('devhub_admin_token') || '')
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
+  const [emailCode, setEmailCode] = useState('')
+  const [loginMode, setLoginMode] = useState<'email' | 'password'>('email')
   const [kind, setKind] = useState<Kind>('overview')
   const [items, setItems] = useState<Item[]>([])
   const [total, setTotal] = useState(0)
@@ -327,14 +330,15 @@ export default function Admin() {
     setBusy(true)
     setMessage('')
     try {
-      const result = await api<LoginResult>('/auth/login', {
+      const result = await api<LoginResult>(loginMode === 'email' ? '/auth/email-login' : '/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ identifier, password }),
+        body: JSON.stringify(loginMode === 'email' ? { email: identifier.trim(), email_code: emailCode } : { identifier: identifier.trim(), password }),
       })
       if (result.user.role !== 1) throw new Error('当前账号没有管理员权限')
       saveSession(result)
       setToken(result.access_token)
       setPassword('')
+      setEmailCode('')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '登录失败')
     } finally {
@@ -583,16 +587,18 @@ export default function Admin() {
             <span className="admin-kicker">站点管理 / 登录</span>
             <h1>回到工作台</h1>
             <p>使用站长账号登录。</p>
-            <label htmlFor="admin-identifier">用户名或邮箱</label>
+            <div className="auth-mode-tabs" role="group" aria-label="登录方式"><button type="button" className={loginMode === 'email' ? 'active' : ''} onClick={() => setLoginMode('email')}>邮箱验证码</button><button type="button" className={loginMode === 'password' ? 'active' : ''} onClick={() => setLoginMode('password')}>密码登录</button></div>
+            <label htmlFor="admin-identifier">{loginMode === 'email' ? '邮箱' : '用户名或邮箱'}</label>
             <input
               id="admin-identifier"
+              type={loginMode === 'email' ? 'email' : 'text'}
               required
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               autoComplete="username"
-              placeholder="输入用户名或邮箱"
+              placeholder={loginMode === 'email' ? '输入站长邮箱' : '输入用户名或邮箱'}
             />
-            <label htmlFor="admin-password">密码</label>
+            {loginMode === 'email' ? <><label htmlFor="auth-code-login">邮箱验证码</label><EmailCodeField email={identifier} purpose="login" value={emailCode} onChange={setEmailCode} /></> : <><label htmlFor="admin-password">密码</label>
             <input
               id="admin-password"
               type="password"
@@ -601,7 +607,7 @@ export default function Admin() {
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
               placeholder="输入密码"
-            />
+            /></>}
             <button type="submit" disabled={busy}>
               {busy ? '登录中…' : '进入管理台'} <ArrowRight size={17} />
             </button>

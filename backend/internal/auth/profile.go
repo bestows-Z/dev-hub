@@ -26,6 +26,7 @@ const maxAvatarBytes = 2 << 20
 
 type profileInput struct {
 	Email       string `json:"email" binding:"required,email,max=255"`
+	EmailCode   string `json:"email_code" binding:"omitempty,len=6"`
 	DisplayName string `json:"display_name" binding:"max=60"`
 	Bio         string `json:"bio" binding:"max=500"`
 	WebsiteURL  string `json:"website_url" binding:"max=255"`
@@ -60,7 +61,24 @@ func (h *Handler) UpdateMe(c *gin.Context) {
 		response.Fail(c, response.CodeInvalidParams, "invalid profile details")
 		return
 	}
-	id := CurrentUser(c).ID
+	current := CurrentUser(c)
+	if input.Email != current.Email {
+		if h.codes == nil {
+			c.JSON(http.StatusServiceUnavailable, response.Response{Code: 50310, Message: "email verification is unavailable"})
+			return
+		}
+		valid, err := h.codes.Verify(c.Request.Context(), "change_email", input.Email, input.EmailCode)
+		if err != nil {
+			h.logger.Error("verify profile email", zap.Error(err))
+			response.Error(c)
+			return
+		}
+		if !valid {
+			response.Fail(c, 40103, "invalid or expired email code")
+			return
+		}
+	}
+	id := current.ID
 	err := h.db.WithContext(c.Request.Context()).Model(&user.User{}).Where("id = ?", id).Updates(map[string]any{
 		"email": input.Email, "display_name": input.DisplayName, "bio": input.Bio, "website_url": input.WebsiteURL,
 	}).Error

@@ -2,7 +2,7 @@
 
 一个可自行部署的博客系统：写文章、展示项目、经营数字商品，也为读者交流和创作留出空间。
 
-网站与管理台使用 React、TypeScript、Vite；API 使用 Go、Gin、GORM。PostgreSQL 保存业务数据，MinIO 保存上传文件，Redis 管理共享限流，Elasticsearch 提供文章搜索，RabbitMQ 与 MongoDB 处理访问统计。基础服务可通过 Docker Compose 启动。
+网站与管理台使用 React、TypeScript、Vite；API 使用 Go、Gin、GORM。PostgreSQL 保存业务数据，MinIO 保存上传文件，Redis 管理共享限流和邮箱验证码，Elasticsearch 提供文章搜索，RabbitMQ 与 MongoDB 处理访问统计。基础服务可通过 Docker Compose 启动。
 
 > 项目持续开发中。下表区分已经可用和正在建设的功能，请按实际状态评估部署需求。
 
@@ -14,7 +14,7 @@
 | 互动 | 登录评论、评论回复与审核、友链申请与审核；评论及用户展示粗略 IP 属地（需配置本地地区库） | 评论提醒 |
 | 项目 | 外链、静态 ZIP 预览、完整前后端 ZIP 上传、后台启停 Docker 预览 | 构建日志与运行监控 |
 | 商店 | 登录后下单、库存预留、个人订单、取消订单、后台状态管理 | 邮箱通知与在线支付 |
-| 账户 | 注册、密码登录、个人资料、头像、独立管理台、作者身份 | 邮箱验证码、GitHub 和 Google 登录 |
+| 账户 | 邮箱验证码注册与登录、密码登录、验证后更换邮箱、个人资料、头像、独立管理台、作者身份 | GitHub 和 Google 登录 |
 | 内容 | 相册上传与管理；空白相册等待站长上传 | 更完整的游记模块 |
 | 助手 | 可拖动的小人物、文章检索问答、可选模型生成和浏览器朗读 | 更多动作与语音输入 |
 
@@ -121,7 +121,15 @@ go build -o bin/devhub-previewworker ./cmd/previewworker
 
 普通用户可在 `/account` 申请成为作者。管理员在「作者申请」中审核，通过后该账户获得作者角色。作者打开 `/studio`，可发布、编辑和删除自己的文章；服务端按 `author_id` 限制读写。项目、商品和全站管理仍只有管理员可操作。旧文章在迁移时归属到最早的管理员账户；若当时没有管理员，则保留无归属状态并以站点名显示署名。
 
-目前注册与登录仍使用密码。邮箱验证码及第三方登录尚未接入。
+### 邮箱验证码与 SMTP
+
+注册必须验证邮箱。读者和管理员默认使用邮箱验证码登录，也可切换密码登录。更换个人邮箱时需验证新邮箱。验证码 10 分钟过期、使用后失效，同一邮箱与用途 60 秒内不能重复发送；连续输错 5 次后作废，每个 IP 与用途每小时最多发送 20 次。Redis 仅保存验证码的 HMAC 摘要。
+
+本地 Compose 包含 Mailpit：SMTP 地址为 `127.0.0.1:1025`，测试收件箱为 [localhost:8025](http://localhost:8025)。本地邮件停留在测试收件箱，不会发往外部邮箱。
+
+上线前按邮件服务商的配置设置 `SMTP_HOST`、`SMTP_PORT`、`SMTP_FROM`、`SMTP_TLS_MODE`、`SMTP_USERNAME`、`SMTP_PASSWORD`。`SMTP_TLS_MODE=tls` 表示连接时使用 TLS，`starttls` 表示通过 STARTTLS 升级；明文模式 `none` 仅供本地和测试环境。QQ 邮箱应使用 SMTP 授权码，并将发件人设置为对应邮箱。密钥只保存在服务器环境中。
+
+GitHub 和 Google 登录仍在开发。
 
 ## 内容与文件
 
@@ -156,7 +164,7 @@ go build -o bin/devhub-previewworker ./cmd/previewworker
 
 访客可以浏览商品；登录后才能创建订单。服务端从登录身份读取用户 ID 和邮箱，不接受客户端冒用的订单归属信息。创建订单时在数据库事务中检查库存、计算总价并预留数量；用户可在个人中心查看订单，取消待付款订单会退回库存。管理员可查看用户名和订单状态。
 
-当前是**线下确认订单**流程，没有在线支付，也不会在网页中收集银行卡信息。邮箱发送能力尚未接入；收到 SMTP 配置后才能自动发送通知。请不要把“待付款”理解为已经收到款项。
+当前是**线下确认订单**流程，没有在线支付，也不会在网页中收集银行卡信息。SMTP 已用于验证码；订单通知尚未接入。请不要把“待付款”理解为已经收到款项。
 
 ## 开发与验证
 
@@ -165,7 +173,7 @@ cd backend && go test ./...
 cd web && npm run build
 ~~~
 
-连接 Docker 服务的集成测试使用显式环境开关，例如 DEVHUB_TEST_MEDIA=1、DEVHUB_TEST_ORDERS=1、DEVHUB_TEST_POSTGRES=1、DEVHUB_TEST_RUNTIME_WORKER=1。测试会创建并清理本地测试数据，不要对生产数据库开启这些开关。
+连接 Docker 服务的集成测试使用显式环境开关，例如 DEVHUB_TEST_REDIS=1、DEVHUB_TEST_MEDIA=1、DEVHUB_TEST_ORDERS=1、DEVHUB_TEST_POSTGRES=1、DEVHUB_TEST_RUNTIME_WORKER=1。测试会创建并清理本地测试数据，不要对生产数据库开启这些开关。
 
 提交更改前运行格式化与构建检查。数据库结构变化请增加可回滚的 Goose 迁移。新增 API 要核对权限、输入大小、错误处理和前端状态。仓库中的 .env.example 只包含示例值。
 

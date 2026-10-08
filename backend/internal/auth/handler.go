@@ -22,9 +22,11 @@ type Handler struct {
 	db      *gorm.DB
 	store   *storage.Store
 	regions *geoip.Resolver
+	codes   user.EmailVerifier
 }
 
 func (h *Handler) SetRegionResolver(regions *geoip.Resolver) { h.regions = regions }
+func (h *Handler) SetEmailVerifier(codes user.EmailVerifier) { h.codes = codes }
 
 func NewHandler(users user.Repository, tokens *Tokens, db *gorm.DB, store *storage.Store, logger *zap.Logger) *Handler {
 	return &Handler{users: users, tokens: tokens, db: db, store: store, logger: logger}
@@ -55,6 +57,41 @@ func (h *Handler) Login(c *gin.Context) {
 		response.Fail(c, 40101, "invalid credentials")
 		return
 	}
+	h.completeLogin(c, u)
+}
+
+func (h *Handler) LoginEmail(c *gin.Context) {
+	var req struct {
+		Email     string `json:"email" binding:"required,email,max=255"`
+		EmailCode string `json:"email_code" binding:"required,len=6"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Fail(c, response.CodeInvalidParams, "invalid email login details")
+		return
+	}
+	if h.codes == nil {
+		c.JSON(http.StatusServiceUnavailable, response.Response{Code: 50310, Message: "email verification is unavailable"})
+		return
+	}
+	valid, err := h.codes.Verify(c.Request.Context(), "login", req.Email, req.EmailCode)
+	if err != nil {
+		h.logger.Error("verify login email", zap.Error(err))
+		response.Error(c)
+		return
+	}
+	if !valid {
+		response.Fail(c, 40101, "invalid or expired email code")
+		return
+	}
+	u, err := h.users.FindByIdentifier(c.Request.Context(), strings.ToLower(strings.TrimSpace(req.Email)))
+	if err != nil || u.Status != user.StatusNormal {
+		response.Fail(c, 40101, "invalid or expired email code")
+		return
+	}
+	h.completeLogin(c, u)
+}
+
+func (h *Handler) completeLogin(c *gin.Context, u *user.User) {
 	if h.regions != nil {
 		region := h.regions.Region(c.ClientIP())
 		if err := h.db.WithContext(c.Request.Context()).Model(u).Update("last_ip_region", region).Error; err != nil {

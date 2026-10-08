@@ -19,6 +19,16 @@ type Config struct {
 	Assistant AssistantConfig
 	Storage   StorageConfig
 	GeoIP     GeoIPConfig
+	SMTP      SMTPConfig
+}
+
+type SMTPConfig struct {
+	Host     string
+	Port     int
+	From     string
+	TLSMode  string
+	Username string
+	Password string
 }
 
 type GeoIPConfig struct{ DBPath string }
@@ -109,6 +119,7 @@ func Load() (*Config, error) {
 		"HTTP_PORT",
 		"HTTP_TRUSTED_PROXIES",
 		"IP_REGION_DB_PATH",
+		"SMTP_HOST", "SMTP_PORT", "SMTP_FROM", "SMTP_TLS_MODE", "SMTP_USERNAME", "SMTP_PASSWORD",
 
 		"POSTGRES_HOST",
 		"POSTGRES_PORT",
@@ -167,6 +178,10 @@ func Load() (*Config, error) {
 	v.SetDefault("RABBITMQ_ADDR", "127.0.0.1:5672")
 	v.SetDefault("MINIO_ENDPOINT", "127.0.0.1:9000")
 	v.SetDefault("MINIO_BUCKET", "devhub-projects")
+	v.SetDefault("SMTP_HOST", "127.0.0.1")
+	v.SetDefault("SMTP_PORT", 1025)
+	v.SetDefault("SMTP_FROM", "DevHub <no-reply@devhub.local>")
+	v.SetDefault("SMTP_TLS_MODE", "none")
 
 	cfg := &Config{
 		App: AppConfig{
@@ -213,6 +228,7 @@ func Load() (*Config, error) {
 			UseSSL:    v.GetBool("MINIO_USE_SSL"),
 		},
 		GeoIP: GeoIPConfig{DBPath: v.GetString("IP_REGION_DB_PATH")},
+		SMTP:  SMTPConfig{Host: v.GetString("SMTP_HOST"), Port: v.GetInt("SMTP_PORT"), From: v.GetString("SMTP_FROM"), TLSMode: v.GetString("SMTP_TLS_MODE"), Username: v.GetString("SMTP_USERNAME"), Password: v.GetString("SMTP_PASSWORD")},
 	}
 
 	if cfg.Postgres.User == "" {
@@ -228,6 +244,9 @@ func Load() (*Config, error) {
 	}
 	if len(cfg.Auth.JWTSecret) < 32 {
 		return nil, fmt.Errorf("AUTH_JWT_SECRET must contain at least 32 characters")
+	}
+	if cfg.App.Env != "local" && cfg.App.Env != "test" && cfg.SMTP.TLSMode == "none" {
+		return nil, fmt.Errorf("SMTP_TLS_MODE must be tls or starttls outside local development")
 	}
 
 	return cfg, nil

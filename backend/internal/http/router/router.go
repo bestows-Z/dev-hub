@@ -11,6 +11,7 @@ import (
 	"github.com/bestows-Z/dev-hub/backend/internal/assistant"
 	"github.com/bestows-Z/dev-hub/backend/internal/auth"
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
+	"github.com/bestows-Z/dev-hub/backend/internal/emailcode"
 	"github.com/bestows-Z/dev-hub/backend/internal/engagement"
 	"github.com/bestows-Z/dev-hub/backend/internal/gallery"
 	"github.com/bestows-Z/dev-hub/backend/internal/http/response"
@@ -21,7 +22,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler, previewHandler *project.PreviewHandler, runtimeHandler *project.RuntimeHandler, galleryHandler *gallery.Handler, mediaHandler *media.Handler, adminHandler *admin.Handler, assistantHandler *assistant.Handler, engagementHandler *engagement.Handler, analyticsHandler *analytics.Handler, analyticsBroker *analytics.Broker) *gin.Engine {
+func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, emailHandler *emailcode.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler, previewHandler *project.PreviewHandler, runtimeHandler *project.RuntimeHandler, galleryHandler *gallery.Handler, mediaHandler *media.Handler, adminHandler *admin.Handler, assistantHandler *assistant.Handler, engagementHandler *engagement.Handler, analyticsHandler *analytics.Handler, analyticsBroker *analytics.Broker) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())
@@ -60,8 +61,11 @@ func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, co
 	{
 		authGroup.POST("/register", userHandler.Register)
 		authGroup.POST("/login", authHandler.Login)
+		authGroup.POST("/email-login", authHandler.LoginEmail)
+		authGroup.POST("/email-codes", emailHandler.Request)
 	}
 	v1.GET("/auth/me", authHandler.RequireUser(), authHandler.Me)
+	v1.POST("/auth/me/email-code", authHandler.RequireUser(), emailHandler.RequestChange)
 	v1.PUT("/auth/me", authHandler.RequireUser(), authHandler.UpdateMe)
 	v1.POST("/auth/me/avatar", authHandler.RequireUser(), authHandler.UploadAvatar)
 	v1.DELETE("/auth/me/avatar", authHandler.RequireUser(), authHandler.DeleteAvatar)

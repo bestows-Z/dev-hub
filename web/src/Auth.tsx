@@ -12,6 +12,7 @@ import {
   type LoginResult,
 } from './session'
 import './auth.css'
+import { EmailCodeField } from './EmailCodeField'
 
 type MyOrder = {
   id: number
@@ -82,11 +83,14 @@ function PasswordField({
   )
 }
 
+
 export function Login() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [identifier, setIdentifier] = useState(params.get('identifier') || '')
   const [password, setPassword] = useState('')
+  const [emailCode, setEmailCode] = useState('')
+  const [loginMode, setLoginMode] = useState<'email' | 'password'>(identifier && !identifier.includes('@') ? 'password' : 'email')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   async function submit(event: FormEvent) {
@@ -94,9 +98,9 @@ export function Login() {
     setBusy(true)
     setError('')
     try {
-      const result = await api<LoginResult>('/auth/login', {
+      const result = await api<LoginResult>(loginMode === 'email' ? '/auth/email-login' : '/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ identifier: identifier.trim(), password }),
+        body: JSON.stringify(loginMode === 'email' ? { email: identifier.trim(), email_code: emailCode } : { identifier: identifier.trim(), password }),
       })
       saveSession(result)
       const next = params.get('next')
@@ -118,19 +122,20 @@ export function Login() {
     <AuthShell mode="login">
       <span className="auth-overline">账户 / 登录</span>
       <h1>欢迎回来</h1>
-      <p className="auth-subtitle">登录后可以管理自己的账户，站长也可以进入内容管理。</p>
+      <p className="auth-subtitle">用邮箱验证码登录，继续阅读、交流和创作。</p>
+      <div className="auth-mode-tabs" role="group" aria-label="登录方式"><button type="button" className={loginMode === 'email' ? 'active' : ''} onClick={() => { setLoginMode('email'); setError('') }}>邮箱验证码</button><button type="button" className={loginMode === 'password' ? 'active' : ''} onClick={() => { setLoginMode('password'); setError('') }}>密码登录</button></div>
       <form className="auth-form" onSubmit={submit}>
-        <label htmlFor="auth-identifier">用户名或邮箱</label>
+        <label htmlFor="auth-identifier">{loginMode === 'email' ? '邮箱' : '用户名或邮箱'}</label>
         <input
           id="auth-identifier"
+          type={loginMode === 'email' ? 'email' : 'text'}
           value={identifier}
           onChange={(event) => setIdentifier(event.target.value)}
           autoComplete="username"
           required
-          placeholder="你的用户名或邮箱"
+          placeholder={loginMode === 'email' ? 'you@example.com' : '你的用户名或邮箱'}
         />
-        <label htmlFor="auth-password">密码</label>
-        <PasswordField value={password} onChange={setPassword} />
+        {loginMode === 'email' ? <><label htmlFor="auth-code-login">邮箱验证码</label><EmailCodeField email={identifier} purpose="login" value={emailCode} onChange={setEmailCode} /></> : <><label htmlFor="auth-password">密码</label><PasswordField value={password} onChange={setPassword} /></>}
         {error && (
           <p className="auth-error" role="alert">
             {error}
@@ -153,6 +158,7 @@ export function Register() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [emailCode, setEmailCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [registered, setRegistered] = useState(false)
@@ -179,7 +185,7 @@ export function Register() {
     try {
       await api<AuthUser>('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ username: username.trim(), email: email.trim(), password }),
+        body: JSON.stringify({ username: username.trim(), email: email.trim(), password, email_code: emailCode }),
       })
       setRegistered(true)
       try {
@@ -203,8 +209,8 @@ export function Register() {
       <span className="auth-overline">账户 / 注册</span>
       <h1>在这里认识你</h1>
       <p className="auth-subtitle">创建账号后，你就能登录本站。注册不会获得管理权限。</p>
-      <form className="auth-form" onSubmit={submit}>
-        <label htmlFor="register-username">用户名</label>
+      <form className="auth-form registration-form" onSubmit={submit}>
+        <div className="auth-form-field register-identity"><label htmlFor="register-username">用户名</label>
         <input
           id="register-username"
           value={username}
@@ -215,7 +221,7 @@ export function Register() {
           required
           placeholder="3–32 位字母、数字或下划线"
         />
-        <label htmlFor="register-email">邮箱</label>
+        </div><div className="auth-form-field register-identity"><label htmlFor="register-email">邮箱</label>
         <input
           id="register-email"
           type="email"
@@ -226,20 +232,23 @@ export function Register() {
           required
           placeholder="you@example.com"
         />
-        <label htmlFor="register-password">密码</label>
+        </div><div className="auth-form-field wide"><label htmlFor="auth-code-register">邮箱验证码</label>
+        <EmailCodeField email={email} purpose="register" value={emailCode} onChange={setEmailCode} />
+        </div><div className="auth-form-field"><label htmlFor="register-password">密码</label>
         <PasswordField
           id="register-password"
           value={password}
           onChange={setPassword}
           autoComplete="new-password"
         />
-        <label htmlFor="register-confirm">确认密码</label>
+        </div><div className="auth-form-field"><label htmlFor="register-confirm">确认密码</label>
         <PasswordField
           id="register-confirm"
           value={confirm}
           onChange={setConfirm}
           autoComplete="new-password"
         />
+        </div>
         {error && (
           <p className="auth-error" role="alert">
             {error}
@@ -265,6 +274,7 @@ export function Account() {
   const [retry, setRetry] = useState(0)
   const [saving, setSaving] = useState(false)
   const [profileMessage, setProfileMessage] = useState('')
+  const [newEmailCode, setNewEmailCode] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [bio, setBio] = useState('')
@@ -354,13 +364,14 @@ export function Account() {
       const updated = await api<AuthUser>('/auth/me', {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ display_name: displayName, email, bio, website_url: websiteURL }),
+        body: JSON.stringify({ display_name: displayName, email, email_code: newEmailCode, bio, website_url: websiteURL }),
       })
       if (!mounted.current || readToken() !== requestToken) return
       draftDirty.current = false
       setUser(updated)
       refreshSessionUser(updated)
       setProfileMessage('资料已保存')
+      setNewEmailCode('')
     } catch (failure) {
       if (!mounted.current || readToken() !== requestToken) return
       if (failure instanceof ApiError && failure.status === 401) {
@@ -533,6 +544,7 @@ export function Account() {
                   required
                 />
               </label>
+              {email.trim().toLowerCase() !== user.email && <div className="wide account-email-verification"><label htmlFor="auth-code-change_email">验证新邮箱</label><EmailCodeField email={email} purpose="change_email" value={newEmailCode} onChange={setNewEmailCode} /></div>}
               <label className="wide">
                 <span>个人网站</span>
                 <input

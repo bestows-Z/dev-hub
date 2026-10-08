@@ -1,7 +1,7 @@
 .auth-page {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(380px, 0.9fr);
-  min-height: 690px;
+  min-height: 750px;
   padding-top: 78px;
   padding-bottom: 108px;
   align-items: stretch;
@@ -54,7 +54,7 @@
   border-radius: 0 15px 15px 0;
   background: #fff;
   box-shadow: 0 12px 36px #2b444011;
-  min-height: 700px;
+  min-height: 750px;
 }
 .auth-page[data-mode] .auth-paper > :not(.auth-tabs) {
   animation: auth-content-enter 0.28s ease-out both;
@@ -296,7 +296,7 @@
   font-size: 12px;
   font-weight: 700;
 }
-.account-edit-grid label.wide {
+.account-edit-grid .wide {
   grid-column: 1 / -1;
 }
 .account-edit-grid input,
@@ -418,7 +418,7 @@
   .account-edit-grid {
     grid-template-columns: 1fr;
   }
-  .account-edit-grid label.wide {
+  .account-edit-grid .wide {
     grid-column: auto;
   }
 }
@@ -511,6 +511,7 @@
     border: 1px solid #e7eceb;
     border-top: 0;
     border-radius: 0 0 12px 12px;
+    min-height: 850px;
   }
   .auth-subtitle {
     margin-bottom: 25px;
@@ -591,3 +592,18 @@
 :root[data-theme='night'] .account-author .account-section-head h2,:root[data-theme='night'] .account-author form label{color:#f2f7eb}
 :root[data-theme='night'] .account-author textarea{background:#183023;color:#f3f8ed;border-color:#54705a}
 :root[data-theme='night'] .account-author-status{color:#b7d1b7}
+.auth-mode-tabs{display:flex;gap:7px;margin:-8px 0 22px;padding:4px;border-radius:9px;background:#eef4ef}
+.auth-mode-tabs button{flex:1;border:0;border-radius:7px;background:transparent;color:#63796a;padding:9px;font-size:12px;font-weight:700;cursor:pointer;transition:background .2s,color .2s,box-shadow .2s}
+.auth-mode-tabs button.active{background:#fff;color:#246f4b;box-shadow:0 2px 8px #24473314}
+
+:root[data-theme='night'] .auth-mode-tabs{background:#1e392b}
+:root[data-theme='night'] .auth-mode-tabs button{color:#bbd2bf}
+:root[data-theme='night'] .auth-mode-tabs button.active{background:#355941;color:#f1f8ec}
+
+.registration-form { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.auth-form-field { display: flex; flex-direction: column; min-width: 0; }
+.registration-form .wide, .registration-form > .auth-error, .registration-form > .auth-submit { grid-column: 1 / -1; }
+.auth-form-field > input { width: 100%; height: 48px; margin: 0 0 19px; padding: 0 13px; border: 1px solid #dce6e4; border-radius: 8px; background: #fff; color: #354648; font-size: 13px; outline: none; }
+.auth-form-field > input:focus { border-color: #72bbb4; box-shadow: 0 0 0 3px #67b9b02a; }
+:root[data-theme='night'] .auth-form-field > input { background: #1d3327; border-color: #4b6551; color: #f4f8ef; }
+@media(max-width:760px) { .registration-form .register-identity { grid-column: 1 / -1; } }

@@ -117,6 +117,16 @@ services:
     networks:
       - devhub
 
+  mailpit:
+    image: axllent/mailpit:v1.27.4
+    container_name: devhub-mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    networks:
+      - devhub
+
 networks:
   devhub:
     driver: bridge

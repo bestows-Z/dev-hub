@@ -19,33 +19,43 @@ type RegisterRequest struct {
 }
 
 // Register keeps both user identifiers in canonical lowercase form.
-func (s *Service) Register(ctx context.Context, req RegisterRequest) (*Response, error) {
+func (s *Service) ValidateRegistration(ctx context.Context, req RegisterRequest) error {
 	username := strings.ToLower(strings.TrimSpace(req.Username))
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 	if len(username) < 3 || len(username) > 32 || !usernamePattern.MatchString(username) {
-		return nil, ErrInvalidUsername
+		return ErrInvalidUsername
 	}
 	if len([]byte(req.Password)) > 72 {
-		return nil, ErrPasswordTooLong
+		return ErrPasswordTooLong
 	}
 	if len(req.Password) < 8 {
-		return nil, fmt.Errorf("password must have at least 8 bytes")
+		return fmt.Errorf("password must have at least 8 bytes")
 	}
 
 	exists, err := s.repository.ExistsByUsername(ctx, username)
 	if err != nil {
-		return nil, fmt.Errorf("check username: %w", err)
+		return fmt.Errorf("check username: %w", err)
 	}
 	if exists {
-		return nil, ErrUsernameExists
+		return ErrUsernameExists
 	}
 	exists, err = s.repository.ExistsByEmail(ctx, email)
 	if err != nil {
-		return nil, fmt.Errorf("check email: %w", err)
+		return fmt.Errorf("check email: %w", err)
 	}
 	if exists {
-		return nil, ErrEmailExists
+		return ErrEmailExists
 	}
+	return nil
+}
+
+// Register rechecks identifiers; database uniqueness handles concurrent requests.
+func (s *Service) Register(ctx context.Context, req RegisterRequest) (*Response, error) {
+	if err := s.ValidateRegistration(ctx, req); err != nil {
+		return nil, err
+	}
+	username := strings.ToLower(strings.TrimSpace(req.Username))
+	email := strings.ToLower(strings.TrimSpace(req.Email))
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {

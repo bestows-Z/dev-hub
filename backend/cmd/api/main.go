@@ -17,6 +17,7 @@ import (
 	"github.com/bestows-Z/dev-hub/backend/internal/auth"
 	"github.com/bestows-Z/dev-hub/backend/internal/config"
 	"github.com/bestows-Z/dev-hub/backend/internal/content"
+	"github.com/bestows-Z/dev-hub/backend/internal/emailcode"
 	"github.com/bestows-Z/dev-hub/backend/internal/engagement"
 	"github.com/bestows-Z/dev-hub/backend/internal/gallery"
 	"github.com/bestows-Z/dev-hub/backend/internal/geoip"
@@ -85,6 +86,13 @@ func main() {
 		userService,
 		logger,
 	)
+	smtpSender, err := emailcode.NewSMTPSender(cfg.SMTP)
+	if err != nil {
+		logger.Fatal("configure email sender", zap.Error(err))
+	}
+	emailCodes := emailcode.NewService(redisClient, smtpSender, cfg.Auth.JWTSecret)
+	userHandler.SetEmailVerifier(emailCodes)
+	emailHandler := emailcode.NewHandler(emailCodes, userRepository, logger)
 	searchClient := search.New(cfg.Search.URL)
 	searchCtx, searchCancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	if err := searchClient.Rebuild(searchCtx, postgresClient.DB); err != nil {
@@ -108,6 +116,7 @@ func main() {
 	bucketCancel()
 	authHandler := auth.NewHandler(userRepository, auth.NewTokens(cfg.Auth.JWTSecret), postgresClient.DB, objectStore, logger)
 	authHandler.SetRegionResolver(regions)
+	authHandler.SetEmailVerifier(emailCodes)
 	previewHandler := project.NewPreviewHandler(postgresClient.DB, objectStore, logger)
 	galleryHandler := gallery.NewHandler(postgresClient.DB, objectStore, logger)
 	runtimeHandler := project.NewRuntimeHandler(postgresClient.DB, logger)
@@ -147,7 +156,7 @@ func main() {
 	}
 	analyticsHandler := analytics.NewHandler(analyticsStore, logger)
 	mediaHandler := media.NewHandler(postgresClient.DB, objectStore, logger)
-	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, contentHandler, storeHandler, projectHandler, previewHandler, runtimeHandler, galleryHandler, mediaHandler, adminHandler, assistantHandler, engagementHandler, analyticsHandler, analyticsBroker)
+	router := httprouter.New(postgresClient.SQLDB, userHandler, authHandler, emailHandler, contentHandler, storeHandler, projectHandler, previewHandler, runtimeHandler, galleryHandler, mediaHandler, adminHandler, assistantHandler, engagementHandler, analyticsHandler, analyticsBroker)
 	var trustedProxies []string
 	for _, entry := range strings.Split(cfg.HTTP.TrustedProxies, ",") {
 		if value := strings.TrimSpace(entry); value != "" {

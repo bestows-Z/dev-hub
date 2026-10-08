@@ -1,0 +1,5 @@
+.auth-code-row{display:flex;gap:9px;margin-bottom:19px}.auth-code-row input{min-width:0;flex:1;height:48px;border:1px solid #dce6e4;border-radius:8px;background:#fff;padding:0 13px;font:inherit;color:#354648;outline:none}.auth-code-row input:focus{border-color:#72bbb4;box-shadow:0 0 0 3px #67b9b02a}.auth-code-row button{flex:none;border:1px solid #8fbaa1;border-radius:8px;background:#ecf6ef;color:#347456;padding:0 13px;font-size:12px;font-weight:700;cursor:pointer}.auth-code-row button:disabled{opacity:.55;cursor:wait}.auth-code-notice{color:#538467;font-size:11px;margin:-11px 0 15px}
+:root[data-theme='night'] .auth-code-row input{background:#1d3327;border-color:#4b6551;color:#f4f8ef}
+:root[data-theme='night'] .auth-code-row button{background:#2c5038;border-color:#568464;color:#e9f6e8}
+
+.account-email-verification > label{display:block;margin-bottom:8px;font-size:12px;font-weight:700}
