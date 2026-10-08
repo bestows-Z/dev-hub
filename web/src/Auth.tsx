@@ -1,5 +1,6 @@
 import { toast } from 'sonner'
 import { useConfirm } from './Feedback'
+import { SocialLogin, ConnectedAccounts } from './SocialAuth'
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight, Eye, EyeOff, LogOut, Save, ShoppingBag, UploadCloud, UserRound } from 'lucide-react'
@@ -148,6 +149,7 @@ export function Login() {
           {busy ? '正在登录…' : '登录'} <ArrowRight size={18} />
         </button>
       </form>
+      <SocialLogin next={params.get('next') || '/account'} />
       <p className="auth-switch">
         还没有账号？<Link to="/register" viewTransition>去注册</Link>
       </p>
@@ -262,6 +264,7 @@ export function Register() {
           {busy ? '正在创建…' : registered ? '前往登录' : '创建账号'} <ArrowRight size={18} />
         </button>
       </form>
+      <SocialLogin />
       <p className="auth-switch">
         已经有账号？<Link to="/login" viewTransition>去登录</Link>
       </p>
@@ -630,6 +633,7 @@ export function Account() {
           </aside>
         </div>
       )}
+      {user && !loading && !error && <ConnectedAccounts />}
       {user && !loading && !error && <section className="account-orders" aria-labelledby="account-orders-title">
         <div className="account-section-head">
           <span>03 / ORDERS</span>

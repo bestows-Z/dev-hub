@@ -23,6 +23,7 @@ type Handler struct {
 	store   *storage.Store
 	regions *geoip.Resolver
 	codes   user.EmailVerifier
+	oauth   *oauthService
 }
 
 func (h *Handler) SetRegionResolver(regions *geoip.Resolver) { h.regions = regions }

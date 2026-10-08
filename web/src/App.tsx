@@ -14,6 +14,7 @@ import { Account, Login, Register } from './Auth'
 import { Comments, LinkApplicationForm } from './Engagement'
 import { authChanged, readToken, readUser } from './session'
 import SiteEffects from './SiteEffects'
+import { OAuthCallback } from './SocialAuth'
 
 import {
   ArrowDown,
@@ -189,7 +190,7 @@ function Layout({ children }: { children: ReactNode }) {
           <span className="copyright">© {new Date().getFullYear()} DevHub</span>
         </div>
       </footer>
-      {!['/login', '/register', '/account'].includes(location.pathname) && <Assistant />}
+      {!['/login', '/register', '/account', '/auth/callback'].includes(location.pathname) && <Assistant />}
       <SiteEffects />
     </div>
   )
@@ -1402,6 +1403,7 @@ export default function App() {
         <Route path="/links" element={<Links />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/auth/callback" element={<OAuthCallback />} />
         <Route path="/account" element={<Account />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

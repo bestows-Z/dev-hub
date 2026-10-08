@@ -33,6 +33,7 @@ import { clearSession, readUser, saveSession, type LoginResult } from './session
 import './admin.css'
 import { toast } from 'sonner'
 import { useConfirm } from './Feedback'
+import { SocialLogin } from './SocialAuth'
 import { EmailCodeField } from './EmailCodeField'
 
 type Kind =
@@ -625,6 +626,7 @@ export default function Admin() {
             <button type="submit" disabled={busy}>
               {busy ? '登录中…' : '进入管理台'} <ArrowRight size={17} />
             </button>
+            <SocialLogin next="/admin" />
             {token && (
               <button
                 type="button"

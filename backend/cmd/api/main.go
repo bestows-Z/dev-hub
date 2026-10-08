@@ -117,6 +117,9 @@ func main() {
 	authHandler := auth.NewHandler(userRepository, auth.NewTokens(cfg.Auth.JWTSecret), postgresClient.DB, objectStore, logger)
 	authHandler.SetRegionResolver(regions)
 	authHandler.SetEmailVerifier(emailCodes)
+	if err := authHandler.SetOAuth(cfg.OAuth, redisClient, cfg.App.Env); err != nil {
+		logger.Fatal("configure OAuth", zap.Error(err))
+	}
 	previewHandler := project.NewPreviewHandler(postgresClient.DB, objectStore, logger)
 	galleryHandler := gallery.NewHandler(postgresClient.DB, objectStore, logger)
 	runtimeHandler := project.NewRuntimeHandler(postgresClient.DB, logger)

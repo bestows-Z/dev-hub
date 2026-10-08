@@ -24,7 +24,7 @@ import (
 
 func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, emailHandler *emailcode.Handler, contentHandler *content.Handler, storeHandler *store.Handler, projectHandler *project.Handler, previewHandler *project.PreviewHandler, runtimeHandler *project.RuntimeHandler, galleryHandler *gallery.Handler, mediaHandler *media.Handler, adminHandler *admin.Handler, assistantHandler *assistant.Handler, engagementHandler *engagement.Handler, analyticsHandler *analytics.Handler, analyticsBroker *analytics.Broker) *gin.Engine {
 	r := gin.New()
-	r.Use(gin.Logger())
+	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{SkipPaths: []string{"/api/v1/auth/oauth/github/callback", "/api/v1/auth/oauth/google/callback"}}))
 	r.Use(gin.Recovery())
 	r.Use(analytics.Tracker(analyticsBroker))
 	v1 := r.Group("/api/v1")
@@ -63,8 +63,15 @@ func New(sqlDB *sql.DB, userHandler *user.Handler, authHandler *auth.Handler, em
 		authGroup.POST("/login", authHandler.Login)
 		authGroup.POST("/email-login", authHandler.LoginEmail)
 		authGroup.POST("/email-codes", emailHandler.Request)
+		authGroup.GET("/oauth/providers", authHandler.OAuthProviders)
+		authGroup.GET("/oauth/:provider/start", authHandler.StartOAuth)
+		authGroup.GET("/oauth/:provider/callback", authHandler.OAuthCallback)
+		authGroup.POST("/oauth/exchange", authHandler.ExchangeOAuth)
+		authGroup.POST("/oauth/:provider/link", authHandler.RequireUser(), authHandler.LinkOAuth)
+		authGroup.DELETE("/oauth/:provider/link", authHandler.RequireUser(), authHandler.UnlinkOAuth)
 	}
 	v1.GET("/auth/me", authHandler.RequireUser(), authHandler.Me)
+	v1.GET("/auth/me/identities", authHandler.RequireUser(), authHandler.OAuthIdentities)
 	v1.POST("/auth/me/email-code", authHandler.RequireUser(), emailHandler.RequestChange)
 	v1.PUT("/auth/me", authHandler.RequireUser(), authHandler.UpdateMe)
 	v1.POST("/auth/me/avatar", authHandler.RequireUser(), authHandler.UploadAvatar)

@@ -76,6 +76,7 @@ export class ApiError extends Error {
 }
 
 function readableError(message: string, code: number, path: string): string {
+  if (/[\u3400-\u9fff]/.test(message)) return message
   const messages: Record<string, string> = {
     'invalid credentials': '用户名、邮箱或密码不正确。',
     'invalid or expired email code': '验证码不正确或已过期，请重新获取。',

@@ -20,6 +20,16 @@ type Config struct {
 	Storage   StorageConfig
 	GeoIP     GeoIPConfig
 	SMTP      SMTPConfig
+	OAuth     OAuthConfig
+}
+
+type OAuthConfig struct {
+	PublicURL          string
+	WebURL             string
+	GitHubClientID     string
+	GitHubClientSecret string
+	GoogleClientID     string
+	GoogleClientSecret string
 }
 
 type SMTPConfig struct {
@@ -120,6 +130,7 @@ func Load() (*Config, error) {
 		"HTTP_TRUSTED_PROXIES",
 		"IP_REGION_DB_PATH",
 		"SMTP_HOST", "SMTP_PORT", "SMTP_FROM", "SMTP_TLS_MODE", "SMTP_USERNAME", "SMTP_PASSWORD",
+		"AUTH_PUBLIC_URL", "WEB_PUBLIC_URL", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
 
 		"POSTGRES_HOST",
 		"POSTGRES_PORT",
@@ -182,6 +193,8 @@ func Load() (*Config, error) {
 	v.SetDefault("SMTP_PORT", 1025)
 	v.SetDefault("SMTP_FROM", "DevHub <no-reply@devhub.local>")
 	v.SetDefault("SMTP_TLS_MODE", "none")
+	v.SetDefault("AUTH_PUBLIC_URL", "http://localhost:5173")
+	v.SetDefault("WEB_PUBLIC_URL", "http://localhost:5173")
 
 	cfg := &Config{
 		App: AppConfig{
@@ -229,6 +242,7 @@ func Load() (*Config, error) {
 		},
 		GeoIP: GeoIPConfig{DBPath: v.GetString("IP_REGION_DB_PATH")},
 		SMTP:  SMTPConfig{Host: v.GetString("SMTP_HOST"), Port: v.GetInt("SMTP_PORT"), From: v.GetString("SMTP_FROM"), TLSMode: v.GetString("SMTP_TLS_MODE"), Username: v.GetString("SMTP_USERNAME"), Password: v.GetString("SMTP_PASSWORD")},
+		OAuth: OAuthConfig{PublicURL: v.GetString("AUTH_PUBLIC_URL"), WebURL: v.GetString("WEB_PUBLIC_URL"), GitHubClientID: v.GetString("GITHUB_CLIENT_ID"), GitHubClientSecret: v.GetString("GITHUB_CLIENT_SECRET"), GoogleClientID: v.GetString("GOOGLE_CLIENT_ID"), GoogleClientSecret: v.GetString("GOOGLE_CLIENT_SECRET")},
 	}
 
 	if cfg.Postgres.User == "" {

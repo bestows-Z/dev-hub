@@ -38,3 +38,10 @@ test('shared conflict codes retain their actual meaning', async () => {
     new Response(JSON.stringify({ code: 40902, message: 'email already exists' }), { status: 409 })
   await assert.rejects(api('/auth/register'), { message: '这个邮箱已被使用，请登录或更换邮箱。' })
 })
+
+test('OAuth errors keep the server explanation instead of an unrelated code message', async () => {
+  const message = '登录授权已过期，请重新发起第三方登录。'
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ code: 40103, message }), { status: 401 })
+  await assert.rejects(api('/auth/oauth/exchange'), { message })
+})

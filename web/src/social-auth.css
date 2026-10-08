@@ -1,0 +1,218 @@
+.social-login {
+  margin-top: 25px;
+}
+.social-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #8a9d90;
+  font-size: 11px;
+}
+.social-divider::before,
+.social-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e0e8df;
+}
+.social-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 13px;
+}
+.social-buttons button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  flex: 1;
+  min-height: 43px;
+  padding: 10px;
+  border: 1px solid #d8e3d9;
+  border-radius: 8px;
+  background: #fff;
+  color: #365040;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+.social-buttons button:not(:disabled):hover {
+  border-color: #82b694;
+  background: #f1f7ef;
+}
+.social-buttons button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+.social-unavailable {
+  min-height: 15px;
+  margin: 9px 0 0;
+  text-align: center;
+  color: #8a9d90;
+  font-size: 11px;
+}
+.oauth-callback {
+  min-height: calc(100vh - 240px);
+  display: grid;
+  place-items: center;
+  padding-block: 80px;
+}
+.oauth-callback-card {
+  width: min(540px, 100%);
+  padding: 42px;
+  border-radius: 18px;
+  background: #fffefa;
+  border: 1px solid #dce7df;
+  box-shadow: 0 15px 45px #2b4b3214;
+  color: #2c6242;
+}
+.oauth-callback-card h1 {
+  font-size: 27px;
+  color: #304a39;
+}
+.oauth-callback-card p {
+  font-size: 14px;
+  line-height: 1.9;
+  color: #687e6f;
+}
+.oauth-callback-card > div {
+  display: flex;
+  gap: 12px;
+  margin-top: 25px;
+}
+.oauth-working {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.oauth-working svg {
+  animation: oauth-spin 1s linear infinite;
+}
+.account-connections {
+  padding: 30px;
+  margin-top: 22px;
+  border: 1px solid #dce7df;
+  border-radius: 13px;
+  background: #fffefa;
+}
+.account-connection-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.account-connection {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 18px;
+  border: 1px solid #e0e8df;
+  border-radius: 11px;
+}
+.account-connection > div:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+.account-connection strong {
+  display: block;
+  color: #355c40;
+  font-size: 14px;
+}
+.account-connection small {
+  display: block;
+  margin-top: 5px;
+  color: #7b8c7f;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.account-connection-icon {
+  display: grid;
+  place-items: center;
+  width: 35px;
+  height: 35px;
+  background: #edf3ea;
+  border-radius: 10px;
+  color: #405b43;
+}
+.account-connection button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  border: 1px solid #cddfcc;
+  border-radius: 7px;
+  background: #f3f7f0;
+  color: #3e7048;
+  padding: 8px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.account-connection button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+:root[data-theme='night'] .social-divider,
+:root[data-theme='night'] .social-unavailable {
+  color: #b1c5b5;
+}
+:root[data-theme='night'] .social-divider::before,
+:root[data-theme='night'] .social-divider::after {
+  background: #48634e;
+}
+:root[data-theme='night'] .social-buttons button {
+  background: #263d2f;
+  border-color: #48634e;
+  color: #e1eee1;
+}
+:root[data-theme='night'] .social-buttons button:not(:disabled):hover {
+  background: #34553e;
+}
+:root[data-theme='night'] .oauth-callback-card,
+:root[data-theme='night'] .account-connections {
+  background: #20342a;
+  border-color: #48634e;
+}
+:root[data-theme='night'] .oauth-callback-card h1,
+:root[data-theme='night'] .account-connection strong {
+  color: #ebf3e5;
+}
+:root[data-theme='night'] .oauth-callback-card p,
+:root[data-theme='night'] .account-connection small {
+  color: #b6cbb9;
+}
+:root[data-theme='night'] .account-connection {
+  border-color: #48634e;
+}
+:root[data-theme='night'] .account-connection-icon,
+:root[data-theme='night'] .account-connection button {
+  background: #35543d;
+  color: #d8ead7;
+  border-color: #5b7960;
+}
+@keyframes oauth-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 760px) {
+  .account-connection-list {
+    grid-template-columns: 1fr;
+  }
+  .account-connections {
+    padding: 24px;
+  }
+  .oauth-callback-card {
+    padding: 28px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .oauth-working svg {
+    animation: none;
+  }
+  .social-buttons button {
+    transition: none;
+  }
+}
